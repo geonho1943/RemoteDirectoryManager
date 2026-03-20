@@ -1,0 +1,32 @@
+# Build outputs
+/build/
+/target/
+/out/
+/.gradle/
+
+# Java artifacts
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+
+# IDE
+/.idea/
+*.iml
+/.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+src/main/resources/application-local.yml
+src/main/resources/application-secret.yml
+src/main/resources/application-*.local.yml
+
