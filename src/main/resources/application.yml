@@ -1,0 +1,3 @@
+app:
+  security:
+    admin-key-hash: ${ADMIN_KEY_HASH}
