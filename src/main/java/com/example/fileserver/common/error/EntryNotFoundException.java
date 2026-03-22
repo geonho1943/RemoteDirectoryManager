@@ -3,14 +3,14 @@ package com.example.fileserver.common.error;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.BAD_REQUEST)
-public class InvalidPathException extends RuntimeException {
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class EntryNotFoundException extends RuntimeException {
 
-    public InvalidPathException(String message) {
+    public EntryNotFoundException(String message) {
         super(message);
     }
 
-    public InvalidPathException(String message, Throwable cause) {
+    public EntryNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
 }

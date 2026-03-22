@@ -4,13 +4,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus(HttpStatus.BAD_REQUEST)
-public class InvalidPathException extends RuntimeException {
+public class NotADirectoryException extends RuntimeException {
 
-    public InvalidPathException(String message) {
+    public NotADirectoryException(String message) {
         super(message);
     }
 
-    public InvalidPathException(String message, Throwable cause) {
+    public NotADirectoryException(String message, Throwable cause) {
         super(message, cause);
     }
 }

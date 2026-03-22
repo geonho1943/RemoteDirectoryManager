@@ -1,3 +1,5 @@
 app:
+  filesystem:
+    root-path: ${FILESYSTEM_ROOT_PATH}
   security:
     admin-key-hash: ${ADMIN_KEY_HASH}
