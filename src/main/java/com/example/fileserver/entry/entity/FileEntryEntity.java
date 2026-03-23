@@ -77,7 +77,7 @@ public class FileEntryEntity {
     @Column(name = "db_updated_at", nullable = false)
     private LocalDateTime dbUpdatedAt;
 
-    protected FileEntryEntity() {
+    public FileEntryEntity() {
     }
 
     public Long getId() {
