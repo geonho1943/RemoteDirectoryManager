@@ -4,10 +4,12 @@ import com.example.fileserver.common.error.EntryAlreadyExistsException;
 import com.example.fileserver.common.error.EntryNotFoundException;
 import com.example.fileserver.common.error.FileOperationException;
 import com.example.fileserver.common.error.InvalidFileUploadException;
+import com.example.fileserver.common.error.InvalidPathException;
 import com.example.fileserver.common.error.NotADirectoryException;
 import com.example.fileserver.entry.ConflictPolicy;
 import com.example.fileserver.entry.dto.CreateDirectoryRequest;
 import com.example.fileserver.entry.dto.CreateDirectoryResponse;
+import com.example.fileserver.entry.dto.DeleteEntryRequest;
 import com.example.fileserver.entry.dto.UploadFileResponse;
 import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.entry.entity.FileEntryType;
@@ -25,9 +27,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
@@ -135,6 +139,26 @@ public class FileCommandServiceImpl implements FileCommandService {
         return new UploadFileResponse(resolvedTarget.relativePath());
     }
 
+    @Override
+    @Transactional
+    public void deleteEntry(DeleteEntryRequest request) {
+        String relativePath = pathNormalizer.normalizeRelativePath(request.path());
+        validateDeleteTarget(relativePath);
+
+        Path targetRealPath = pathResolver.resolveUnderRoot(relativePath);
+        if (!Files.exists(targetRealPath, LinkOption.NOFOLLOW_LINKS)) {
+            throw new EntryNotFoundException("Entry not found: " + relativePath);
+        }
+
+        deleteFromFilesystem(relativePath, targetRealPath);
+
+        try {
+            fileEntryRepository.deleteSubtreeByRelativePath(relativePath);
+        } catch (DataAccessException exception) {
+            throw new FileOperationException("Failed to delete metadata: " + relativePath, exception);
+        }
+    }
+
     private void validateParent(String parentPath, Path parentRealPath) {
         if (!Files.exists(parentRealPath, LinkOption.NOFOLLOW_LINKS)) {
             throw new EntryNotFoundException("Parent path not found: " + parentPath);
@@ -167,6 +191,12 @@ public class FileCommandServiceImpl implements FileCommandService {
         }
 
         return conflictPolicy;
+    }
+
+    private void validateDeleteTarget(String relativePath) {
+        if ("/".equals(relativePath)) {
+            throw new InvalidPathException("Root path cannot be deleted.");
+        }
     }
 
     private ResolvedUploadTarget resolveUploadTarget(
@@ -257,6 +287,52 @@ public class FileCommandServiceImpl implements FileCommandService {
         } catch (IOException exception) {
             throw new FileOperationException("Failed to store file: " + resolvedTarget.relativePath(), exception);
         }
+    }
+
+    private void deleteFromFilesystem(String relativePath, Path targetRealPath) {
+        try {
+            if (Files.isDirectory(targetRealPath, LinkOption.NOFOLLOW_LINKS)) {
+                deleteRecursively(targetRealPath);
+                return;
+            }
+
+            Files.delete(targetRealPath);
+        } catch (IOException exception) {
+            throw new FileOperationException("Failed to delete entry: " + relativePath, exception);
+        }
+    }
+
+    private void deleteRecursively(Path rootPath) throws IOException {
+        Files.walkFileTree(rootPath, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path directory, BasicFileAttributes attrs) throws IOException {
+                if (attrs.isSymbolicLink()) {
+                    throw new FileOperationException("Symbolic links are not allowed: " + directory);
+                }
+
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                if (attrs.isSymbolicLink()) {
+                    throw new FileOperationException("Symbolic links are not allowed: " + file);
+                }
+
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path directory, IOException exception) throws IOException {
+                if (exception != null) {
+                    throw exception;
+                }
+
+                Files.delete(directory);
+                return FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     private void createDirectoryOnFilesystem(String targetRelativePath, Path targetRealPath) {
