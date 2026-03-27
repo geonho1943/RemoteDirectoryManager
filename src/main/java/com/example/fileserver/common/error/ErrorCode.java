@@ -1,0 +1,15 @@
+package com.example.fileserver.common.error;
+
+public enum ErrorCode {
+    INVALID_PATH,
+    INVALID_ENTRY_NAME,
+    ENTRY_NOT_FOUND,
+    ENTRY_ALREADY_EXISTS,
+    NOT_A_DIRECTORY,
+    NOT_A_FILE,
+    INVALID_MOVE_TARGET,
+    INVALID_RANGE_HEADER,
+    FILE_OPERATION_FAILED,
+    UNAUTHORIZED_API_KEY,
+    INTERNAL_SERVER_ERROR
+}
