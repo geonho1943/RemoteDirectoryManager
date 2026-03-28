@@ -19,26 +19,21 @@
 *.iml
 /.vscode/
 
-# Build scripts
-/build.gradle
-/settings.gradle
-/gradle.properties
-/gradlew
-/gradlew.bat
-
-# Documentation
-*.md
-
 # OS files
 .DS_Store
 Thumbs.db
+
+# Gradle wrapper binaries
+/gradlew
+/gradlew.bat
+
+# Personal work notes
+/WORK_REPORT.md
 
 # Local environment and secrets
 .env
 .env.*
 !.env.example
-src/main/resources/application.yml
 src/main/resources/application-local.yml
 src/main/resources/application-secret.yml
-src/main/resources/application-*.yml
 src/main/resources/application-*.local.yml

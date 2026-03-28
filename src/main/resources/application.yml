@@ -1,5 +1,34 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mariadb://localhost:3306/remote_directory_manager}
+    username: ${DB_USERNAME:rdm_user}
+    password: ${DB_PASSWORD:change-me}
+    driver-class-name: org.mariadb.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+  servlet:
+    multipart:
+      max-file-size: 1GB
+      max-request-size: 1GB
+
 app:
-  filesystem:
-    root-path: ${FILESYSTEM_ROOT_PATH}
+  storage:
+    root-path: ${FILESYSTEM_ROOT_PATH:./storage}
   security:
     admin-key-hash: ${ADMIN_KEY_HASH}
+
+logging:
+  level:
+    com.example.fileserver: INFO
