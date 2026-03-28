@@ -15,10 +15,7 @@ import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.entry.entity.FileEntryType;
 import com.example.fileserver.entry.repository.FileEntryRepository;
 import com.example.fileserver.filesystem.path.PathNormalizer;
-import com.example.fileserver.filesystem.path.PathNormalizerImpl;
 import com.example.fileserver.filesystem.path.PathResolver;
-import com.example.fileserver.filesystem.path.PathResolverImpl;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,21 +45,6 @@ public class FileCommandServiceImpl implements FileCommandService {
     private final FileEntryRepository fileEntryRepository;
 
     public FileCommandServiceImpl(
-            @Value("${app.filesystem.root-path}") String rootPath,
-            FileEntryRepository fileEntryRepository
-    ) {
-        this(createPathNormalizer(), rootPath, fileEntryRepository);
-    }
-
-    FileCommandServiceImpl(
-            PathNormalizer pathNormalizer,
-            String rootPath,
-            FileEntryRepository fileEntryRepository
-    ) {
-        this(pathNormalizer, new PathResolverImpl(rootPath, pathNormalizer), fileEntryRepository);
-    }
-
-    FileCommandServiceImpl(
             PathNormalizer pathNormalizer,
             PathResolver pathResolver,
             FileEntryRepository fileEntryRepository
@@ -349,7 +331,7 @@ public class FileCommandServiceImpl implements FileCommandService {
         try {
             return Files.readAttributes(targetRealPath, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         } catch (IOException exception) {
-            throw new FileOperationException("Failed to read directory attributes: " + targetRelativePath, exception);
+            throw new FileOperationException("Failed to read entry attributes: " + targetRelativePath, exception);
         }
     }
 
@@ -428,10 +410,6 @@ public class FileCommandServiceImpl implements FileCommandService {
         }
 
         return LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
-    }
-
-    private static PathNormalizer createPathNormalizer() {
-        return new PathNormalizerImpl();
     }
 
     private record ResolvedUploadTarget(

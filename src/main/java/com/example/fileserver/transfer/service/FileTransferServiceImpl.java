@@ -5,10 +5,7 @@ import com.example.fileserver.common.error.FileOperationException;
 import com.example.fileserver.common.error.InvalidRangeHeaderException;
 import com.example.fileserver.common.error.NotAFileException;
 import com.example.fileserver.filesystem.path.PathNormalizer;
-import com.example.fileserver.filesystem.path.PathNormalizerImpl;
 import com.example.fileserver.filesystem.path.PathResolver;
-import com.example.fileserver.filesystem.path.PathResolverImpl;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -37,15 +34,7 @@ public class FileTransferServiceImpl implements FileTransferService {
     private final PathNormalizer pathNormalizer;
     private final PathResolver pathResolver;
 
-    public FileTransferServiceImpl(@Value("${app.filesystem.root-path}") String rootPath) {
-        this(createPathNormalizer(), rootPath);
-    }
-
-    FileTransferServiceImpl(PathNormalizer pathNormalizer, String rootPath) {
-        this(pathNormalizer, new PathResolverImpl(rootPath, pathNormalizer));
-    }
-
-    FileTransferServiceImpl(PathNormalizer pathNormalizer, PathResolver pathResolver) {
+    public FileTransferServiceImpl(PathNormalizer pathNormalizer, PathResolver pathResolver) {
         this.pathNormalizer = pathNormalizer;
         this.pathResolver = pathResolver;
     }
@@ -202,10 +191,6 @@ public class FileTransferServiceImpl implements FileTransferService {
         SeekableByteChannel channel = Files.newByteChannel(filePath, StandardOpenOption.READ);
         channel.position(start);
         return new BoundedInputStream(Channels.newInputStream(channel), contentLength);
-    }
-
-    private static PathNormalizer createPathNormalizer() {
-        return new PathNormalizerImpl();
     }
 
     private record RangeSpec(long start, long end, long contentLength) {

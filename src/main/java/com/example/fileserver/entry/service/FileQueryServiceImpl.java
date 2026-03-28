@@ -7,10 +7,7 @@ import com.example.fileserver.entry.dto.DirectoryListResponse;
 import com.example.fileserver.entry.dto.FileEntryDetailResponse;
 import com.example.fileserver.entry.dto.FileEntryDto;
 import com.example.fileserver.filesystem.path.PathNormalizer;
-import com.example.fileserver.filesystem.path.PathNormalizerImpl;
 import com.example.fileserver.filesystem.path.PathResolver;
-import com.example.fileserver.filesystem.path.PathResolverImpl;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -34,15 +31,7 @@ public class FileQueryServiceImpl implements FileQueryService {
     private final PathNormalizer pathNormalizer;
     private final PathResolver pathResolver;
 
-    public FileQueryServiceImpl(@Value("${app.filesystem.root-path}") String rootPath) {
-        this(createPathNormalizer(), rootPath);
-    }
-
-    FileQueryServiceImpl(PathNormalizer pathNormalizer, String rootPath) {
-        this(pathNormalizer, new PathResolverImpl(rootPath, pathNormalizer));
-    }
-
-    FileQueryServiceImpl(PathNormalizer pathNormalizer, PathResolver pathResolver) {
+    public FileQueryServiceImpl(PathNormalizer pathNormalizer, PathResolver pathResolver) {
         this.pathNormalizer = pathNormalizer;
         this.pathResolver = pathResolver;
     }
@@ -211,7 +200,4 @@ public class FileQueryServiceImpl implements FileQueryService {
         return LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
     }
 
-    private static PathNormalizer createPathNormalizer() {
-        return new PathNormalizerImpl();
-    }
 }

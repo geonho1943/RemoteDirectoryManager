@@ -1,5 +1,6 @@
 package com.example.fileserver.security;
 
+import com.example.fileserver.common.response.ErrorResponse;
 import com.example.fileserver.common.error.UnauthorizedApiKeyException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -14,8 +15,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
@@ -101,11 +100,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-        Map<String, String> body = new LinkedHashMap<>();
-        body.put("code", "UNAUTHORIZED_API_KEY");
-        body.put("message", message);
-        body.put("path", requestPath);
-        body.put("timestamp", LocalDateTime.now().toString());
+        ErrorResponse body = new ErrorResponse(
+                "UNAUTHORIZED_API_KEY",
+                message,
+                requestPath,
+                LocalDateTime.now()
+        );
 
         objectMapper.writeValue(response.getWriter(), body);
     }

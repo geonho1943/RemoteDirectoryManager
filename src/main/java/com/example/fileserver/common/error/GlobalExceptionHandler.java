@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.INVALID_PATH,
-                "Invalid path.",
+                resolveMessage(exception, "Invalid path."),
                 request
         );
     }
@@ -46,7 +46,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.NOT_FOUND,
                 ErrorCode.ENTRY_NOT_FOUND,
-                "Entry not found.",
+                resolveMessage(exception, "Entry not found."),
                 request
         );
     }
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.CONFLICT,
                 ErrorCode.ENTRY_ALREADY_EXISTS,
-                "Entry already exists.",
+                resolveMessage(exception, "Entry already exists."),
                 request
         );
     }
@@ -72,7 +72,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.NOT_A_DIRECTORY,
-                "Not a directory.",
+                resolveMessage(exception, "Not a directory."),
                 request
         );
     }
@@ -85,7 +85,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.NOT_A_FILE,
-                "Not a file.",
+                resolveMessage(exception, "Not a file."),
                 request
         );
     }
@@ -98,7 +98,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.BAD_REQUEST,
                 ErrorCode.INVALID_MOVE_TARGET,
-                "Invalid move target.",
+                resolveMessage(exception, "Invalid move target."),
                 request
         );
     }
@@ -111,7 +111,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE,
                 ErrorCode.INVALID_RANGE_HEADER,
-                "Invalid Range header.",
+                resolveMessage(exception, "Invalid Range header."),
                 request
         );
     }
@@ -124,7 +124,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.UNAUTHORIZED,
                 ErrorCode.UNAUTHORIZED_API_KEY,
-                "Invalid API key.",
+                resolveMessage(exception, "Invalid API key."),
                 request
         );
     }
@@ -137,7 +137,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 ErrorCode.FILE_OPERATION_FAILED,
-                "File operation failed.",
+                resolveMessage(exception, "File operation failed."),
                 request
         );
     }
