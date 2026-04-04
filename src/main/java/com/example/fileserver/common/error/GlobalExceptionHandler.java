@@ -116,6 +116,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidTagException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTag(
+            InvalidTagException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                ErrorCode.INVALID_TAG,
+                resolveMessage(exception, "Invalid tag."),
+                request
+        );
+    }
+
     @ExceptionHandler(UnauthorizedApiKeyException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorizedApiKey(
             UnauthorizedApiKeyException exception,
