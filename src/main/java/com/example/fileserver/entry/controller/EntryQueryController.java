@@ -20,14 +20,14 @@ public class EntryQueryController {
 
     @GetMapping
     public DirectoryListResponse listEntries(
-            @RequestParam String path,
-            @RequestParam(defaultValue = "true") boolean includeHidden
+            @RequestParam("path") String path,
+            @RequestParam(name = "includeHidden", defaultValue = "true") boolean includeHidden
     ) {
         return fileQueryService.listEntries(path, includeHidden);
     }
 
     @GetMapping("/detail")
-    public FileEntryDetailResponse getEntryDetail(@RequestParam String path) {
+    public FileEntryDetailResponse getEntryDetail(@RequestParam("path") String path) {
         return fileQueryService.getEntryDetail(path);
     }
 }

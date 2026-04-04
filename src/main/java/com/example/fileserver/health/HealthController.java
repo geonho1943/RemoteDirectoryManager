@@ -10,6 +10,6 @@ public class HealthController {
 
     @GetMapping
     public HealthResponse health() {
-        return new HealthResponse("UP");
+        return new HealthResponse("HERE I AM");
     }
 }

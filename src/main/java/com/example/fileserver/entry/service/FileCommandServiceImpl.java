@@ -11,18 +11,14 @@ import com.example.fileserver.entry.dto.CreateDirectoryRequest;
 import com.example.fileserver.entry.dto.CreateDirectoryResponse;
 import com.example.fileserver.entry.dto.DeleteEntryRequest;
 import com.example.fileserver.entry.dto.UploadFileResponse;
-import com.example.fileserver.entry.entity.FileEntryEntity;
-import com.example.fileserver.entry.entity.FileEntryType;
-import com.example.fileserver.entry.repository.FileEntryRepository;
 import com.example.fileserver.filesystem.path.PathNormalizer;
 import com.example.fileserver.filesystem.path.PathResolver;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -31,27 +27,22 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 
 @Service
 public class FileCommandServiceImpl implements FileCommandService {
 
-    private static final String DEFAULT_FILESYSTEM_ID = "default";
-
     private final PathNormalizer pathNormalizer;
     private final PathResolver pathResolver;
-    private final FileEntryRepository fileEntryRepository;
+    private final FileMetadataService fileMetadataService;
 
     public FileCommandServiceImpl(
             PathNormalizer pathNormalizer,
             PathResolver pathResolver,
-            FileEntryRepository fileEntryRepository
+            FileMetadataService fileMetadataService
     ) {
         this.pathNormalizer = pathNormalizer;
         this.pathResolver = pathResolver;
-        this.fileEntryRepository = fileEntryRepository;
+        this.fileMetadataService = fileMetadataService;
     }
 
     @Override
@@ -67,20 +58,6 @@ public class FileCommandServiceImpl implements FileCommandService {
         validateParent(parentPath, parentRealPath);
         ensureTargetDoesNotExist(targetRelativePath, targetRealPath);
         createDirectoryOnFilesystem(targetRelativePath, targetRealPath);
-
-        BasicFileAttributes attributes = readAttributes(targetRealPath, targetRelativePath);
-        boolean hidden = detectHidden(targetRealPath, name);
-
-        FileEntryEntity entity = fileEntryRepository.findByRelativePath(targetRelativePath)
-                .orElseGet(FileEntryEntity::new);
-
-        populateDirectoryEntity(entity, parentPath, name, targetRelativePath, attributes, hidden);
-
-        try {
-            fileEntryRepository.saveAndFlush(entity);
-        } catch (DataAccessException exception) {
-            throw new FileOperationException("Failed to persist directory metadata: " + targetRelativePath, exception);
-        }
 
         return new CreateDirectoryResponse(targetRelativePath);
     }
@@ -102,21 +79,7 @@ public class FileCommandServiceImpl implements FileCommandService {
         );
 
         storeFile(file, resolvedTarget);
-
-        BasicFileAttributes attributes = readAttributes(resolvedTarget.realPath(), resolvedTarget.relativePath());
-        boolean hidden = detectHidden(resolvedTarget.realPath(), resolvedTarget.fileName());
-        String mimeType = detectMimeType(resolvedTarget.realPath());
-
-        FileEntryEntity entity = fileEntryRepository.findByRelativePath(resolvedTarget.relativePath())
-                .orElseGet(FileEntryEntity::new);
-
-        populateFileEntity(entity, normalizedParentPath, resolvedTarget, attributes, mimeType, hidden);
-
-        try {
-            fileEntryRepository.saveAndFlush(entity);
-        } catch (DataAccessException exception) {
-            throw new FileOperationException("Failed to persist file metadata: " + resolvedTarget.relativePath(), exception);
-        }
+        fileMetadataService.syncFileRecord(resolvedTarget.relativePath());
 
         return new UploadFileResponse(resolvedTarget.relativePath());
     }
@@ -133,12 +96,7 @@ public class FileCommandServiceImpl implements FileCommandService {
         }
 
         deleteFromFilesystem(relativePath, targetRealPath);
-
-        try {
-            fileEntryRepository.deleteSubtreeByRelativePath(relativePath);
-        } catch (DataAccessException exception) {
-            throw new FileOperationException("Failed to delete metadata: " + relativePath, exception);
-        }
+        fileMetadataService.deactivateByPathOrDescendant(relativePath);
     }
 
     private void validateParent(String parentPath, Path parentRealPath) {
@@ -325,91 +283,6 @@ public class FileCommandServiceImpl implements FileCommandService {
         } catch (IOException exception) {
             throw new FileOperationException("Failed to create directory: " + targetRelativePath, exception);
         }
-    }
-
-    private BasicFileAttributes readAttributes(Path targetRealPath, String targetRelativePath) {
-        try {
-            return Files.readAttributes(targetRealPath, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-        } catch (IOException exception) {
-            throw new FileOperationException("Failed to read entry attributes: " + targetRelativePath, exception);
-        }
-    }
-
-    private boolean detectHidden(Path targetRealPath, String name) {
-        try {
-            if (Files.isHidden(targetRealPath)) {
-                return true;
-            }
-        } catch (IOException ignored) {
-        }
-
-        return name.startsWith(".");
-    }
-
-    private String detectMimeType(Path targetRealPath) {
-        try {
-            return Files.probeContentType(targetRealPath);
-        } catch (IOException exception) {
-            return null;
-        }
-    }
-
-    private void populateDirectoryEntity(
-            FileEntryEntity entity,
-            String parentPath,
-            String name,
-            String targetRelativePath,
-            BasicFileAttributes attributes,
-            boolean hidden
-    ) {
-        LocalDateTime now = LocalDateTime.now();
-
-        entity.setFilesystemId(DEFAULT_FILESYSTEM_ID);
-        entity.setEntryType(FileEntryType.DIRECTORY);
-        entity.setRelativePath(targetRelativePath);
-        entity.setParentPath(parentPath);
-        entity.setName(name);
-        entity.setExtension(null);
-        entity.setMimeType(null);
-        entity.setSizeBytes(null);
-        entity.setModifiedAt(toLocalDateTime(attributes.lastModifiedTime()));
-        entity.setCreatedAtFs(toLocalDateTime(attributes.creationTime()));
-        entity.setHidden(hidden);
-        entity.setChecksumSha256(null);
-        entity.setLastScannedAt(now);
-    }
-
-    private void populateFileEntity(
-            FileEntryEntity entity,
-            String parentPath,
-            ResolvedUploadTarget resolvedTarget,
-            BasicFileAttributes attributes,
-            String mimeType,
-            boolean hidden
-    ) {
-        LocalDateTime now = LocalDateTime.now();
-
-        entity.setFilesystemId(DEFAULT_FILESYSTEM_ID);
-        entity.setEntryType(FileEntryType.FILE);
-        entity.setRelativePath(resolvedTarget.relativePath());
-        entity.setParentPath(parentPath);
-        entity.setName(resolvedTarget.fileName());
-        entity.setExtension(pathNormalizer.extractExtension(resolvedTarget.fileName()));
-        entity.setMimeType(mimeType);
-        entity.setSizeBytes(attributes.size());
-        entity.setModifiedAt(toLocalDateTime(attributes.lastModifiedTime()));
-        entity.setCreatedAtFs(toLocalDateTime(attributes.creationTime()));
-        entity.setHidden(hidden);
-        entity.setChecksumSha256(null);
-        entity.setLastScannedAt(now);
-    }
-
-    private LocalDateTime toLocalDateTime(FileTime fileTime) {
-        if (fileTime == null) {
-            return null;
-        }
-
-        return LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
     }
 
     private record ResolvedUploadTarget(

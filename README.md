@@ -99,8 +99,8 @@ src/main/java/com/example/fileserver
 
 ## 데이터베이스
 
-기본 메타데이터 테이블은 `file_entries` 하나를 사용합니다.  
-스키마는 [`src/main/resources/schema.sql`](src/main/resources/schema.sql)에 있습니다.
+기본 메타데이터는 `files`, `thumbnails`, `tags`, `file_tags` 테이블을 사용합니다.  
+스키마는 [`src/main/resources/schema.sql`](src/main/resources/schema.sql)에 있으며, 파일시스템을 기준으로 메타데이터와 태그를 동기화합니다.
 
 ## 라이선스
 

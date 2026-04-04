@@ -1,6 +1,7 @@
 package com.example.fileserver.entry.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record FileEntryDto(
         String entryType,
@@ -11,6 +12,8 @@ public record FileEntryDto(
         String mimeType,
         Long sizeBytes,
         LocalDateTime modifiedAt,
-        boolean hidden
+        boolean hidden,
+        Long fileId,
+        List<TagSummaryDto> tags
 ) {
 }

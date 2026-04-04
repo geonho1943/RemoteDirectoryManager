@@ -1,151 +1,108 @@
 package com.example.fileserver.entry.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(
-        name = "file_entries",
+        name = "files",
         indexes = {
-                @Index(name = "idx_file_entries_parent_path", columnList = "parent_path"),
-                @Index(name = "idx_file_entries_name", columnList = "name"),
-                @Index(name = "idx_file_entries_entry_type", columnList = "entry_type"),
-                @Index(name = "idx_file_entries_modified_at", columnList = "modified_at"),
-                @Index(name = "idx_file_entries_filesystem_id", columnList = "filesystem_id")
+                @Index(name = "idx_files_file_name", columnList = "file_name"),
+                @Index(name = "idx_files_file_extension", columnList = "file_extension"),
+                @Index(name = "idx_files_modified_at", columnList = "modified_at"),
+                @Index(name = "idx_files_is_active", columnList = "is_active")
         }
 )
 public class FileEntryEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "file_id")
+    private Long fileId;
 
-    @Column(name = "filesystem_id", nullable = false, length = 64)
-    private String filesystemId = "default";
+    @Column(name = "file_path", nullable = false, unique = true, length = 4096)
+    private String filePath;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "entry_type", nullable = false, length = 16)
-    private FileEntryType entryType;
+    @Column(name = "file_name", nullable = false, length = 512)
+    private String fileName;
 
-    @Column(name = "relative_path", nullable = false, unique = true, length = 4096)
-    private String relativePath;
+    @Column(name = "file_extension", length = 64)
+    private String fileExtension;
 
-    @Column(name = "parent_path", nullable = false, length = 4096)
-    private String parentPath;
-
-    @Column(name = "name", nullable = false, length = 512)
-    private String name;
-
-    @Column(name = "extension", length = 64)
-    private String extension;
-
-    @Column(name = "mime_type", length = 255)
-    private String mimeType;
-
-    @Column(name = "size_bytes")
-    private Long sizeBytes;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
     @Column(name = "modified_at", nullable = false)
     private LocalDateTime modifiedAt;
 
-    @Column(name = "created_at_fs")
-    private LocalDateTime createdAtFs;
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
 
-    @Column(name = "is_hidden", nullable = false)
-    private boolean hidden;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "file_tags",
+            joinColumns = @JoinColumn(name = "file_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<TagEntity> tags = new LinkedHashSet<>();
 
-    @Column(name = "checksum_sha256", length = 64)
-    private String checksumSha256;
-
-    @Column(name = "last_scanned_at", nullable = false)
-    private LocalDateTime lastScannedAt;
-
-    @Column(name = "db_created_at", nullable = false, updatable = false)
-    private LocalDateTime dbCreatedAt;
-
-    @Column(name = "db_updated_at", nullable = false)
-    private LocalDateTime dbUpdatedAt;
+    @OneToMany(mappedBy = "file", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ThumbnailEntity> thumbnails = new ArrayList<>();
 
     public FileEntryEntity() {
     }
 
-    public Long getId() {
-        return id;
+    public Long getFileId() {
+        return fileId;
     }
 
-    public String getFilesystemId() {
-        return filesystemId;
+    public String getFilePath() {
+        return filePath;
     }
 
-    public void setFilesystemId(String filesystemId) {
-        this.filesystemId = filesystemId;
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
     }
 
-    public FileEntryType getEntryType() {
-        return entryType;
+    public String getFileName() {
+        return fileName;
     }
 
-    public void setEntryType(FileEntryType entryType) {
-        this.entryType = entryType;
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
-    public String getRelativePath() {
-        return relativePath;
+    public String getFileExtension() {
+        return fileExtension;
     }
 
-    public void setRelativePath(String relativePath) {
-        this.relativePath = relativePath;
+    public void setFileExtension(String fileExtension) {
+        this.fileExtension = fileExtension;
     }
 
-    public String getParentPath() {
-        return parentPath;
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-    public void setParentPath(String parentPath) {
-        this.parentPath = parentPath;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getExtension() {
-        return extension;
-    }
-
-    public void setExtension(String extension) {
-        this.extension = extension;
-    }
-
-    public String getMimeType() {
-        return mimeType;
-    }
-
-    public void setMimeType(String mimeType) {
-        this.mimeType = mimeType;
-    }
-
-    public Long getSizeBytes() {
-        return sizeBytes;
-    }
-
-    public void setSizeBytes(Long sizeBytes) {
-        this.sizeBytes = sizeBytes;
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public LocalDateTime getModifiedAt() {
@@ -156,55 +113,27 @@ public class FileEntryEntity {
         this.modifiedAt = modifiedAt;
     }
 
-    public LocalDateTime getCreatedAtFs() {
-        return createdAtFs;
+    public boolean isActive() {
+        return active;
     }
 
-    public void setCreatedAtFs(LocalDateTime createdAtFs) {
-        this.createdAtFs = createdAtFs;
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
-    public boolean isHidden() {
-        return hidden;
+    public Set<TagEntity> getTags() {
+        return tags;
     }
 
-    public void setHidden(boolean hidden) {
-        this.hidden = hidden;
+    public void setTags(Set<TagEntity> tags) {
+        this.tags = tags;
     }
 
-    public String getChecksumSha256() {
-        return checksumSha256;
+    public List<ThumbnailEntity> getThumbnails() {
+        return thumbnails;
     }
 
-    public void setChecksumSha256(String checksumSha256) {
-        this.checksumSha256 = checksumSha256;
-    }
-
-    public LocalDateTime getLastScannedAt() {
-        return lastScannedAt;
-    }
-
-    public void setLastScannedAt(LocalDateTime lastScannedAt) {
-        this.lastScannedAt = lastScannedAt;
-    }
-
-    public LocalDateTime getDbCreatedAt() {
-        return dbCreatedAt;
-    }
-
-    public LocalDateTime getDbUpdatedAt() {
-        return dbUpdatedAt;
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.dbCreatedAt = now;
-        this.dbUpdatedAt = now;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.dbUpdatedAt = LocalDateTime.now();
+    public void setThumbnails(List<ThumbnailEntity> thumbnails) {
+        this.thumbnails = thumbnails;
     }
 }

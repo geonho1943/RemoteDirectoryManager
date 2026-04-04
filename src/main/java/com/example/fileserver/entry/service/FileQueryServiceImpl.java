@@ -6,6 +6,8 @@ import com.example.fileserver.common.error.NotADirectoryException;
 import com.example.fileserver.entry.dto.DirectoryListResponse;
 import com.example.fileserver.entry.dto.FileEntryDetailResponse;
 import com.example.fileserver.entry.dto.FileEntryDto;
+import com.example.fileserver.entry.dto.TagSummaryDto;
+import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.filesystem.path.PathNormalizer;
 import com.example.fileserver.filesystem.path.PathResolver;
 import org.springframework.stereotype.Service;
@@ -18,8 +20,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 @Service
@@ -30,10 +34,16 @@ public class FileQueryServiceImpl implements FileQueryService {
 
     private final PathNormalizer pathNormalizer;
     private final PathResolver pathResolver;
+    private final FileMetadataService fileMetadataService;
 
-    public FileQueryServiceImpl(PathNormalizer pathNormalizer, PathResolver pathResolver) {
+    public FileQueryServiceImpl(
+            PathNormalizer pathNormalizer,
+            PathResolver pathResolver,
+            FileMetadataService fileMetadataService
+    ) {
         this.pathNormalizer = pathNormalizer;
         this.pathResolver = pathResolver;
+        this.fileMetadataService = fileMetadataService;
     }
 
     @Override
@@ -50,8 +60,11 @@ public class FileQueryServiceImpl implements FileQueryService {
         }
 
         try (Stream<Path> children = Files.list(directoryPath)) {
-            List<FileEntryDto> entries = children
-                    .map(child -> toFileEntryDto(child, normalizedPath))
+            List<Path> childPaths = children.toList();
+            Map<String, FileEntryEntity> metadataByPath = loadFileMetadata(normalizedPath, childPaths);
+
+            List<FileEntryDto> entries = childPaths.stream()
+                    .map(child -> toFileEntryDto(child, normalizedPath, metadataByPath))
                     .filter(entry -> includeHidden || !entry.hidden())
                     .sorted(directoryFirstComparator())
                     .toList();
@@ -74,12 +87,22 @@ public class FileQueryServiceImpl implements FileQueryService {
         return toFileEntryDetailResponse(entryPath, normalizedPath);
     }
 
-    private FileEntryDto toFileEntryDto(Path entryPath, String parentPath) {
+    private Map<String, FileEntryEntity> loadFileMetadata(String parentPath, Collection<Path> childPaths) {
+        List<String> filePaths = childPaths.stream()
+                .filter(child -> Files.isRegularFile(child, LinkOption.NOFOLLOW_LINKS))
+                .map(child -> pathNormalizer.join(parentPath, fileName(child)))
+                .toList();
+
+        return fileMetadataService.findActiveFilesByPath(filePaths);
+    }
+
+    private FileEntryDto toFileEntryDto(Path entryPath, String parentPath, Map<String, FileEntryEntity> metadataByPath) {
         String name = fileName(entryPath);
         String relativePath = pathNormalizer.join(parentPath, name);
         BasicFileAttributes attributes = readAttributes(entryPath, relativePath);
         String entryType = resolveEntryType(attributes, relativePath);
         boolean hidden = isHidden(entryPath);
+        FileEntryEntity fileMetadata = ENTRY_TYPE_FILE.equals(entryType) ? metadataByPath.get(relativePath) : null;
 
         return new FileEntryDto(
                 entryType,
@@ -90,7 +113,9 @@ public class FileQueryServiceImpl implements FileQueryService {
                 resolveMimeType(entryType, entryPath),
                 resolveSize(entryType, attributes),
                 toLocalDateTime(attributes.lastModifiedTime()),
-                hidden
+                hidden,
+                fileMetadata != null ? fileMetadata.getFileId() : null,
+                fileMetadata != null ? toTagSummaryList(fileMetadata) : List.of()
         );
     }
 
@@ -98,6 +123,9 @@ public class FileQueryServiceImpl implements FileQueryService {
         BasicFileAttributes attributes = readAttributes(entryPath, relativePath);
         String entryType = resolveEntryType(attributes, relativePath);
         String name = "/".equals(relativePath) ? "/" : pathNormalizer.extractFileName(relativePath);
+        FileEntryEntity fileMetadata = ENTRY_TYPE_FILE.equals(entryType)
+                ? fileMetadataService.syncFileRecord(relativePath)
+                : null;
 
         return new FileEntryDetailResponse(
                 entryType,
@@ -109,8 +137,17 @@ public class FileQueryServiceImpl implements FileQueryService {
                 resolveSize(entryType, attributes),
                 toLocalDateTime(attributes.lastModifiedTime()),
                 toLocalDateTime(attributes.creationTime()),
-                isHidden(entryPath)
+                isHidden(entryPath),
+                fileMetadata != null ? fileMetadata.getFileId() : null,
+                fileMetadata != null ? toTagSummaryList(fileMetadata) : List.of()
         );
+    }
+
+    private List<TagSummaryDto> toTagSummaryList(FileEntryEntity fileMetadata) {
+        return fileMetadata.getTags().stream()
+                .map(tag -> new TagSummaryDto(tag.getTagId(), tag.getTagName()))
+                .sorted((left, right) -> left.tagName().compareToIgnoreCase(right.tagName()))
+                .toList();
     }
 
     private BasicFileAttributes readAttributes(Path entryPath, String relativePath) {
@@ -199,5 +236,4 @@ public class FileQueryServiceImpl implements FileQueryService {
 
         return LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
     }
-
 }

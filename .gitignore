@@ -2,6 +2,8 @@
 /build/
 /target/
 /out/
+/bin/
+/storage/
 /.gradle/
 /gradle/
 
