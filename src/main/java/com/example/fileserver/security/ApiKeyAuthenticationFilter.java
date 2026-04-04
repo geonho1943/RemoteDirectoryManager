@@ -20,7 +20,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String API_PREFIX = "/api/v1";
     private static final String HEALTH_PATH = "/api/v1/health";
-    private static final String API_KEY_HEADER = "X-API-Key";
+    private static final String API_KEY_HEADER_NAME = "API-Key";
 
     private final SecurityProperties securityProperties;
     private final ApiKeyHasher apiKeyHasher;
@@ -55,7 +55,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String requestPath = pathWithinApplication(request);
 
         try {
-            String rawApiKey = request.getHeader(API_KEY_HEADER);
+            String rawApiKey = request.getHeader(API_KEY_HEADER_NAME);
             if (rawApiKey == null || rawApiKey.trim().isEmpty()) {
                 throw new UnauthorizedApiKeyException("Missing API key.");
             }
