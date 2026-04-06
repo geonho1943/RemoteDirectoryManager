@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/css/base.css">
+    <link rel="stylesheet" href="./assets/css/explorer.css">
+</head>
+<body class="page-explorer">
+<div id="loading-bar" class="loading-bar"></div>
+<div id="toast-container" class="toast-container"></div>
+
+<header class="topbar shell-card">
+    <div class="brand-block">
+        <div class="eyebrow">Remote Directory Manager</div>
+        <div class="brand-line">
+            <h1 class="brand">VAULT<span class="accent-dot">.</span></h1>
+            <p class="brand-sub">Browse, preview, upload, delete, and manage tags without leaving the main explorer flow.</p>
+        </div>
+    </div>
+
+    <div class="topbar-controls">
+        <button id="backButton" class="btn btn-subtle" type="button">Back</button>
+        <button id="upButton" class="btn btn-subtle" type="button">Up</button>
+        <button id="refreshButton" class="btn btn-subtle" type="button">Refresh</button>
+        <button id="themeToggleButton" class="btn btn-quiet" type="button">Light Mode</button>
+        <button id="uploadButton" class="btn btn-primary" type="button">Upload</button>
+        <button id="newFolderButton" class="btn btn-subtle" type="button">New Folder</button>
+
+        <label class="toggle-field" for="includeHiddenToggle">
+            <input id="includeHiddenToggle" type="checkbox">
+            <span>Include Hidden</span>
+        </label>
+
+        <button id="disconnectButton" class="btn btn-danger" type="button">Disconnect</button>
+    </div>
+</header>
+
+<section class="status-strip">
+    <article class="status-card shell-card">
+        <span class="status-label">Current Path</span>
+        <strong id="currentPathLabel" class="status-value">/</strong>
+    </article>
+    <article class="status-card shell-card">
+        <span class="status-label">Selection</span>
+        <strong id="selectionSummary" class="status-value">No selection</strong>
+    </article>
+    <article class="status-card shell-card">
+        <span class="status-label">Status</span>
+        <strong id="statusLabel" class="status-value">Ready</strong>
+    </article>
+</section>
+
+<main class="workspace">
+    <section class="explorer-panel shell-card">
+        <div class="panel-header">
+            <div>
+                <div class="eyebrow">Directory View</div>
+                <h2 class="panel-title">Explorer</h2>
+                <div id="breadcrumbs" class="breadcrumbs"></div>
+            </div>
+            <div id="entryCountLabel" class="panel-meta">0</div>
+        </div>
+
+        <div id="dropOverlay" class="drop-overlay hidden">
+            <div class="drop-overlay-copy">
+                <strong>Drop files to upload</strong>
+                <span>Release them anywhere inside the explorer panel.</span>
+            </div>
+        </div>
+
+        <div class="table-shell" id="fileListPanel">
+            <table id="fileTable" class="entry-table">
+                <thead>
+                <tr>
+                    <th data-sort-key="name" data-sort-label="Name"></th>
+                    <th data-sort-key="type" data-sort-label="Type"></th>
+                    <th data-sort-key="size" data-sort-label="Size"></th>
+                    <th data-sort-key="modified" data-sort-label="Modified"></th>
+                    <th class="tags-column">Tags</th>
+                </tr>
+                </thead>
+                <tbody id="fileTableBody"></tbody>
+            </table>
+
+            <div id="listLoading" class="state-placeholder hidden">
+                <div class="spinner"></div>
+                <p>Loading directory contents...</p>
+            </div>
+
+            <div id="emptyState" class="state-placeholder hidden">
+                <h3>This folder is empty</h3>
+                <p>Create a folder or upload files to start here.</p>
+            </div>
+        </div>
+    </section>
+
+    <aside id="detailPanel" class="detail-panel shell-card">
+        <div class="detail-header">
+            <div id="detailBadge" class="detail-badge">--</div>
+            <div class="detail-heading">
+                <div class="eyebrow">Details</div>
+                <h2 id="detailName" class="detail-name">Nothing selected</h2>
+                <p id="detailSubtitle" class="detail-subtitle">Select a file or folder to inspect metadata and preview content.</p>
+            </div>
+            <button id="detailCloseButton" class="btn btn-quiet detail-close" type="button">Close</button>
+        </div>
+
+        <section class="detail-section">
+            <div class="section-title">Metadata</div>
+            <dl id="detailList" class="detail-list"></dl>
+        </section>
+
+        <section class="detail-section">
+            <div class="section-title">Actions</div>
+            <div id="detailActions" class="detail-actions"></div>
+        </section>
+
+        <section class="detail-section">
+            <div class="section-title">Preview</div>
+            <div id="previewContent" class="preview-surface">
+                <div class="preview-empty">
+                    <h3>Preview appears here</h3>
+                    <p>Select a file to load a quick preview or choose a folder to inspect its details.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="tagsSection" class="detail-section">
+            <div class="section-title">Tags</div>
+            <div id="selectedTagList" class="tag-list"></div>
+
+            <label class="field-group">
+                <span class="field-label">Quick Add</span>
+                <input id="quickTagInput" class="text-input" type="text" list="availableTagOptions" placeholder="backup, archive, urgent">
+                <datalist id="availableTagOptions"></datalist>
+            </label>
+
+            <div class="split-actions">
+                <button id="quickTagAddButton" class="btn btn-subtle" type="button">Apply Quick Tags</button>
+                <button id="reloadDetailButton" class="btn btn-quiet" type="button">Reload Detail</button>
+            </div>
+
+            <div class="tag-grid">
+                <label class="field-group">
+                    <span class="field-label">Available Tags</span>
+                    <select id="availableTagsSelect" class="text-input text-select tag-select" multiple size="6"></select>
+                </label>
+                <div class="field-group selected-tags-panel">
+                    <span class="field-label">Selected To Remove</span>
+                    <div id="selectedTagSelection" class="tag-selection-panel">No tags selected</div>
+                </div>
+            </div>
+
+            <div class="split-actions">
+                <button id="applySelectedTagsButton" class="btn btn-subtle" type="button">Attach Selected</button>
+                <button id="removeSelectedTagsButton" class="btn btn-danger" type="button">Remove Selected</button>
+            </div>
+
+            <p id="tagStatusLabel" class="section-helper">Select a file to manage tags.</p>
+        </section>
+    </aside>
+</main>
+
+<div id="modalOverlay" class="modal-overlay hidden">
+    <div id="mkdirModal" class="modal-card hidden">
+        <div class="modal-head">
+            <div class="eyebrow">Create Directory</div>
+            <h2>Create a new folder in the current location.</h2>
+        </div>
+
+        <label class="field-group">
+            <span class="field-label">Folder Name</span>
+            <input id="mkdirNameInput" class="text-input" type="text" placeholder="new-folder">
+        </label>
+
+        <div class="modal-actions">
+            <button id="mkdirCancelButton" class="btn btn-quiet" type="button">Cancel</button>
+            <button id="mkdirConfirmButton" class="btn btn-primary" type="button">Create</button>
+        </div>
+    </div>
+
+    <div id="uploadModal" class="modal-card hidden">
+        <div class="modal-head">
+            <div class="eyebrow">Upload Files</div>
+            <h2>Select files to upload into the current path.</h2>
+            <p id="uploadDestination" class="modal-copy"></p>
+        </div>
+
+        <div id="uploadDropZone" class="upload-dropzone">
+            <strong>Click to choose files or drop them here</strong>
+            <span>Multiple files are supported.</span>
+            <input id="uploadInput" type="file" multiple hidden>
+        </div>
+
+        <div id="uploadFileList" class="upload-file-list"></div>
+
+        <label class="field-group">
+            <span class="field-label">Conflict Policy</span>
+            <select id="conflictPolicySelect" class="text-input text-select">
+                <option value="AUTO_RENAME">Auto Rename</option>
+                <option value="OVERWRITE">Overwrite</option>
+                <option value="FAIL">Fail</option>
+            </select>
+        </label>
+
+        <div class="modal-actions">
+            <button id="uploadCancelButton" class="btn btn-quiet" type="button">Cancel</button>
+            <button id="uploadConfirmButton" class="btn btn-primary" type="button">Upload</button>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal-card danger hidden">
+        <div class="modal-head">
+            <div class="eyebrow">Delete Entry</div>
+            <h2>This action cannot be undone.</h2>
+            <p id="deleteTargetLabel" class="modal-copy"></p>
+        </div>
+
+        <div class="modal-actions">
+            <button id="deleteCancelButton" class="btn btn-quiet" type="button">Cancel</button>
+            <button id="deleteConfirmButton" class="btn btn-danger" type="button">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="./assets/js/pages/explorer.js"></script>
+</body>
+</html>

@@ -3,191 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RDM Explorer</title>
-    <link rel="stylesheet" href="./styles.css">
+    <title>Vault Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/css/base.css">
+    <link rel="stylesheet" href="./assets/css/login.css">
 </head>
-<body>
-<div class="app-shell">
-    <header class="topbar">
-        <div class="brand-block">
-            <div class="brand-kicker">Remote Directory Manager</div>
-            <h1>RDM Explorer</h1>
-            <p>Browse folders, preview files, stream media, and attach reusable tags to files.</p>
+<body class="page-login">
+<div id="loading-bar" class="loading-bar"></div>
+<div id="toast-container" class="toast-container"></div>
+
+<main class="login-screen">
+    <section class="login-card shell-card">
+        <div class="login-card-head">
+            <div>
+                <div class="eyebrow">Remote Directory Manager</div>
+                <h1 class="login-logo">VAULT<span class="accent-dot">.</span></h1>
+                <p class="login-subtitle">Secure browser for directory listing, upload, preview, and tag control.</p>
+            </div>
         </div>
 
-        <div class="topbar-controls">
-            <label class="secret-field">
-                <span>API Key</span>
-                <input id="apiKeyInput" type="password" placeholder="Enter API Key">
+        <div class="login-copy">
+            <p>Only the API key is required here. Server address input is intentionally removed because this client runs on the same origin as the service.</p>
+        </div>
+
+        <form id="loginForm" class="login-form" novalidate>
+            <label class="field-group">
+                <span class="field-label">API Key</span>
+                <input
+                    id="apiKeyInput"
+                    class="text-input"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Enter your API key"
+                >
             </label>
 
-            <label class="toggle-row">
-                <input id="includeHiddenToggle" type="checkbox" checked>
-                <span>Include hidden</span>
-            </label>
-
-            <button id="themeToggle" class="ghost-button" type="button">Dark Mode</button>
-            <button id="connectButton" class="primary-button" type="button">Connect</button>
-        </div>
-    </header>
-
-    <section class="hero-strip">
-        <div class="hero-card">
-            <span class="hero-label">Current Path</span>
-            <strong id="currentPathLabel">/</strong>
-        </div>
-        <div class="hero-card">
-            <span class="hero-label">Selection</span>
-            <strong id="selectionSummary">No selection</strong>
-        </div>
-        <div class="hero-card">
-            <span class="hero-label">Status</span>
-            <strong id="statusLabel">Idle</strong>
-        </div>
+            <button id="connectButton" class="btn btn-primary btn-block" type="submit">Connect</button>
+            <p id="loginError" class="inline-error hidden" role="alert"></p>
+        </form>
     </section>
+</main>
 
-    <main class="workspace">
-        <aside class="sidebar">
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Navigation</h2>
-                </div>
-                <div id="breadcrumbs" class="breadcrumbs"></div>
-                <div class="action-grid">
-                    <button id="backButton" class="ghost-button" type="button">Back</button>
-                    <button id="upButton" class="ghost-button" type="button">Up</button>
-                    <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
-                    <button id="newFolderButton" class="ghost-button" type="button">New Folder</button>
-                </div>
-            </section>
-
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Transfer</h2>
-                </div>
-                <label class="stack-field">
-                    <span>Upload conflict policy</span>
-                    <select id="conflictPolicySelect">
-                        <option value="AUTO_RENAME">AUTO_RENAME</option>
-                        <option value="OVERWRITE">OVERWRITE</option>
-                        <option value="FAIL">FAIL</option>
-                    </select>
-                </label>
-                <div class="action-grid">
-                    <button id="uploadButton" class="primary-button" type="button">Upload Files</button>
-                    <button id="downloadButton" class="ghost-button" type="button" disabled>Download</button>
-                    <button id="deleteButton" class="danger-button" type="button" disabled>Delete</button>
-                </div>
-                <input id="fileInput" type="file" multiple hidden>
-            </section>
-
-            <section class="panel">
-                <div class="panel-header">
-                    <h2>Preview</h2>
-                </div>
-                <div class="action-grid preview-actions">
-                    <button id="previewButton" class="ghost-button" type="button" disabled>Preview</button>
-                    <button id="streamButton" class="ghost-button" type="button" disabled>Stream</button>
-                    <button id="detailButton" class="ghost-button" type="button" disabled>Reload Detail</button>
-                </div>
-                <p class="helper-text">Images, text, audio, video, and PDF files switch to a matching viewer.</p>
-            </section>
-        </aside>
-
-        <section class="explorer">
-            <section class="panel explorer-panel">
-                <div class="panel-header">
-                    <h2>Explorer</h2>
-                    <span id="entryCountLabel" class="panel-meta">0 items</span>
-                </div>
-                <div id="dropZone" class="drop-zone">
-                    <div class="drop-zone-inner">
-                        <strong>Drop files here to upload</strong>
-                        <span>or use the upload button.</span>
-                    </div>
-                </div>
-                <div class="table-shell">
-                    <table class="entry-table">
-                        <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Size</th>
-                            <th>Modified</th>
-                        </tr>
-                        </thead>
-                        <tbody id="entryTableBody"></tbody>
-                    </table>
-                    <div id="emptyState" class="empty-state" hidden>
-                        <h3>This folder is empty</h3>
-                        <p>Create a folder or upload files to get started.</p>
-                    </div>
-                </div>
-            </section>
-        </section>
-
-        <aside class="preview-pane">
-            <section class="panel preview-panel">
-                <div class="panel-header">
-                    <h2>Quick View</h2>
-                    <span id="previewKindLabel" class="panel-meta">Idle</span>
-                </div>
-                <div id="previewContent" class="preview-content">
-                    <div class="empty-preview">
-                        <h3>Preview appears here</h3>
-                        <p>Select a file for preview, or select a folder to inspect its detail panel.</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="panel detail-panel">
-                <div class="panel-header">
-                    <h2>Details</h2>
-                </div>
-                <dl id="detailList" class="detail-list">
-                    <div><dt>Name</dt><dd>-</dd></div>
-                    <div><dt>Path</dt><dd>-</dd></div>
-                    <div><dt>Type</dt><dd>-</dd></div>
-                    <div><dt>MIME</dt><dd>-</dd></div>
-                    <div><dt>Size</dt><dd>-</dd></div>
-                    <div><dt>Modified</dt><dd>-</dd></div>
-                    <div><dt>Created</dt><dd>-</dd></div>
-                    <div><dt>Hidden</dt><dd>-</dd></div>
-                    <div><dt>File ID</dt><dd>-</dd></div>
-                </dl>
-
-                <section class="tag-box">
-                    <div class="panel-header compact-header">
-                        <h2>Tags</h2>
-                        <span id="tagStatusLabel" class="panel-meta">Select a file</span>
-                    </div>
-                    <div id="selectedTagList" class="tag-list">
-                        <span class="tag-chip tag-chip-muted">No tags</span>
-                    </div>
-                    <label class="stack-field">
-                        <span>Attached tags</span>
-                        <select id="attachedTagsSelect" multiple size="5"></select>
-                    </label>
-                    <label class="stack-field">
-                        <span>Existing tags</span>
-                        <select id="existingTagsSelect" multiple size="6"></select>
-                    </label>
-                    <label class="stack-field">
-                        <span>New tags</span>
-                        <input id="newTagsInput" type="text" placeholder="backup, outdoor, broken">
-                    </label>
-                    <div class="tag-actions">
-                        <button id="applyTagsButton" class="primary-button" type="button" disabled>Apply Tags</button>
-                        <button id="removeTagsButton" class="danger-button" type="button" disabled>Remove Selected</button>
-                    </div>
-                </section>
-            </section>
-        </aside>
-    </main>
-</div>
-
-<div id="toast" class="toast" hidden></div>
-
-<script src="./app.js"></script>
+<script type="module" src="./assets/js/pages/login.js"></script>
 </body>
 </html>

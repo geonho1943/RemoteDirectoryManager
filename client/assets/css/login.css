@@ -1,0 +1,81 @@
+.page-login {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.login-screen {
+    width: min(100%, 520px);
+}
+
+.login-card {
+    position: relative;
+    overflow: hidden;
+    padding: 36px;
+}
+
+.login-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.login-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.22;
+}
+
+.login-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.login-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.login-logo {
+    margin: 8px 0 6px;
+    color: var(--text-bright);
+    font-size: clamp(2.2rem, 8vw, 3rem);
+    letter-spacing: 0.2em;
+    line-height: 1;
+}
+
+.login-subtitle,
+.login-copy {
+    color: var(--text-muted);
+}
+
+.login-copy {
+    margin: 24px 0 20px;
+    line-height: 1.7;
+}
+
+.login-form {
+    display: grid;
+    gap: 18px;
+}
+
+@media (max-width: 640px) {
+    .login-card {
+        padding: 24px;
+    }
+
+    .login-card-head {
+        flex-direction: column;
+    }
+}
