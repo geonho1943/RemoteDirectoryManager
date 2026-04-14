@@ -10,6 +10,8 @@ import com.example.fileserver.entry.dto.TagSummaryDto;
 import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.filesystem.path.PathNormalizer;
 import com.example.fileserver.filesystem.path.PathResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -24,6 +26,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Service
@@ -31,6 +34,7 @@ public class FileQueryServiceImpl implements FileQueryService {
 
     private static final String ENTRY_TYPE_DIRECTORY = "DIRECTORY";
     private static final String ENTRY_TYPE_FILE = "FILE";
+    private static final Logger log = LoggerFactory.getLogger(FileQueryServiceImpl.class);
 
     private final PathNormalizer pathNormalizer;
     private final PathResolver pathResolver;
@@ -64,7 +68,8 @@ public class FileQueryServiceImpl implements FileQueryService {
             Map<String, FileEntryEntity> metadataByPath = loadFileMetadata(normalizedPath, childPaths);
 
             List<FileEntryDto> entries = childPaths.stream()
-                    .map(child -> toFileEntryDto(child, normalizedPath, metadataByPath))
+                    .map(child -> toSafeFileEntryDto(child, normalizedPath, metadataByPath))
+                    .flatMap(Optional::stream)
                     .filter(entry -> includeHidden || !entry.hidden())
                     .sorted(directoryFirstComparator())
                     .toList();
@@ -117,6 +122,19 @@ public class FileQueryServiceImpl implements FileQueryService {
                 fileMetadata != null ? fileMetadata.getFileId() : null,
                 fileMetadata != null ? toTagSummaryList(fileMetadata) : List.of()
         );
+    }
+
+    private Optional<FileEntryDto> toSafeFileEntryDto(
+            Path entryPath,
+            String parentPath,
+            Map<String, FileEntryEntity> metadataByPath
+    ) {
+        try {
+            return Optional.of(toFileEntryDto(entryPath, parentPath, metadataByPath));
+        } catch (FileOperationException exception) {
+            log.warn("Skipping unsupported directory entry while listing {}: {}", entryPath, exception.getMessage());
+            return Optional.empty();
+        }
     }
 
     private FileEntryDetailResponse toFileEntryDetailResponse(Path entryPath, String relativePath) {
