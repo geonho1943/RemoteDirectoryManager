@@ -4,8 +4,10 @@ import com.example.fileserver.common.error.EntryAlreadyExistsException;
 import com.example.fileserver.common.error.EntryNotFoundException;
 import com.example.fileserver.common.error.FileOperationException;
 import com.example.fileserver.common.error.InvalidFileUploadException;
+import com.example.fileserver.common.error.MetadataSynchronizationException;
 import com.example.fileserver.common.error.InvalidPathException;
 import com.example.fileserver.common.error.NotADirectoryException;
+import com.example.fileserver.common.error.TransactionSynchronizationUnavailableException;
 import com.example.fileserver.entry.ConflictPolicy;
 import com.example.fileserver.entry.dto.CreateDirectoryRequest;
 import com.example.fileserver.entry.dto.CreateDirectoryResponse;
@@ -13,8 +15,12 @@ import com.example.fileserver.entry.dto.DeleteEntryRequest;
 import com.example.fileserver.entry.dto.UploadFileResponse;
 import com.example.fileserver.filesystem.path.PathNormalizer;
 import com.example.fileserver.filesystem.path.PathResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -27,9 +33,12 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.UUID;
 
 @Service
 public class FileCommandServiceImpl implements FileCommandService {
+
+    private static final Logger log = LoggerFactory.getLogger(FileCommandServiceImpl.class);
 
     private final PathNormalizer pathNormalizer;
     private final PathResolver pathResolver;
@@ -78,8 +87,16 @@ public class FileCommandServiceImpl implements FileCommandService {
                 requireConflictPolicy(conflictPolicy)
         );
 
-        storeFile(file, resolvedTarget);
-        fileMetadataService.syncFileRecord(resolvedTarget.relativePath());
+        stageUploadForTransaction(file, resolvedTarget);
+
+        try {
+            fileMetadataService.syncFileRecord(resolvedTarget.relativePath());
+        } catch (RuntimeException exception) {
+            throw new MetadataSynchronizationException(
+                    "Failed to synchronize file metadata after upload: " + resolvedTarget.relativePath(),
+                    exception
+            );
+        }
 
         return new UploadFileResponse(resolvedTarget.relativePath());
     }
@@ -95,8 +112,16 @@ public class FileCommandServiceImpl implements FileCommandService {
             throw new EntryNotFoundException("Entry not found: " + relativePath);
         }
 
-        deleteFromFilesystem(relativePath, targetRealPath);
-        fileMetadataService.deactivateByPathOrDescendant(relativePath);
+        stageDeleteForTransaction(relativePath, targetRealPath);
+
+        try {
+            fileMetadataService.deactivateByPathOrDescendant(relativePath);
+        } catch (RuntimeException exception) {
+            throw new MetadataSynchronizationException(
+                    "Failed to synchronize file metadata after delete: " + relativePath,
+                    exception
+            );
+        }
     }
 
     private void validateParent(String parentPath, Path parentRealPath) {
@@ -215,30 +240,191 @@ public class FileCommandServiceImpl implements FileCommandService {
         return baseName + suffix + "." + extension;
     }
 
-    private void storeFile(MultipartFile file, ResolvedUploadTarget resolvedTarget) {
+    private void stageUploadForTransaction(MultipartFile file, ResolvedUploadTarget resolvedTarget) {
+        ensureTransactionSynchronizationAvailable();
+
+        Path tempUploadPath = null;
+        Path backupPath = null;
+        boolean targetWritten = false;
+
         try (InputStream inputStream = file.getInputStream()) {
+            Path targetPath = resolvedTarget.realPath();
+            tempUploadPath = Files.createTempFile(targetPath.getParent(), ".rdm-upload-", ".tmp");
+            Files.copy(inputStream, tempUploadPath, StandardCopyOption.REPLACE_EXISTING);
+
             if (resolvedTarget.overwrite()) {
-                Files.copy(inputStream, resolvedTarget.realPath(), StandardCopyOption.REPLACE_EXISTING);
-            } else {
-                Files.copy(inputStream, resolvedTarget.realPath());
+                backupPath = createSiblingTransactionPath(targetPath, "backup");
+                movePath(targetPath, backupPath);
             }
+
+            movePath(tempUploadPath, targetPath);
+            targetWritten = true;
+            registerUploadSynchronization(targetPath, backupPath);
         } catch (FileAlreadyExistsException exception) {
+            rollbackStagedUpload(resolvedTarget.realPath(), backupPath, targetWritten);
             throw new EntryAlreadyExistsException("Entry already exists: " + resolvedTarget.relativePath(), exception);
         } catch (IOException exception) {
+            rollbackStagedUpload(resolvedTarget.realPath(), backupPath, targetWritten);
             throw new FileOperationException("Failed to store file: " + resolvedTarget.relativePath(), exception);
+        } catch (RuntimeException exception) {
+            rollbackStagedUpload(resolvedTarget.realPath(), backupPath, targetWritten);
+            throw exception;
+        } finally {
+            deleteQuietly(tempUploadPath, "temporary upload file");
         }
     }
 
-    private void deleteFromFilesystem(String relativePath, Path targetRealPath) {
+    private void stageDeleteForTransaction(String relativePath, Path targetRealPath) {
+        ensureTransactionSynchronizationAvailable();
+
+        Path stagedDeletionPath = createSiblingTransactionPath(targetRealPath, "delete");
+
         try {
-            if (Files.isDirectory(targetRealPath, LinkOption.NOFOLLOW_LINKS)) {
-                deleteRecursively(targetRealPath);
+            movePath(targetRealPath, stagedDeletionPath);
+            registerDeleteSynchronization(targetRealPath, stagedDeletionPath);
+        } catch (IOException exception) {
+            rollbackStagedDeletion(targetRealPath, stagedDeletionPath);
+            throw new FileOperationException("Failed to delete entry: " + relativePath, exception);
+        } catch (RuntimeException exception) {
+            rollbackStagedDeletion(targetRealPath, stagedDeletionPath);
+            throw exception;
+        }
+    }
+
+    private void registerUploadSynchronization(Path targetPath, Path backupPath) {
+        try {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deleteQuietly(backupPath, "upload backup");
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == STATUS_ROLLED_BACK) {
+                        rollbackStagedUpload(targetPath, backupPath, true);
+                    }
+                }
+            });
+        } catch (IllegalStateException exception) {
+            throw new TransactionSynchronizationUnavailableException(
+                    "Failed to register upload transaction synchronization.",
+                    exception
+            );
+        }
+    }
+
+    private void registerDeleteSynchronization(Path targetPath, Path stagedDeletionPath) {
+        try {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deleteRecursivelyQuietly(stagedDeletionPath);
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == STATUS_ROLLED_BACK) {
+                        rollbackStagedDeletion(targetPath, stagedDeletionPath);
+                    }
+                }
+            });
+        } catch (IllegalStateException exception) {
+            throw new TransactionSynchronizationUnavailableException(
+                    "Failed to register delete transaction synchronization.",
+                    exception
+            );
+        }
+    }
+
+    private void rollbackStagedUpload(Path targetPath, Path backupPath, boolean targetWritten) {
+        try {
+            if (targetWritten) {
+                deleteQuietly(targetPath, "uploaded file");
+            }
+
+            if (backupPath != null && Files.exists(backupPath, LinkOption.NOFOLLOW_LINKS)) {
+                if (Files.exists(targetPath, LinkOption.NOFOLLOW_LINKS)) {
+                    log.error("Cannot restore overwritten file because target path already exists: {}", targetPath);
+                    return;
+                }
+
+                movePath(backupPath, targetPath);
+            }
+        } catch (IOException exception) {
+            log.error("Failed to roll back staged upload for {}", targetPath, exception);
+        }
+    }
+
+    private void rollbackStagedDeletion(Path targetPath, Path stagedDeletionPath) {
+        try {
+            if (stagedDeletionPath != null && Files.exists(stagedDeletionPath, LinkOption.NOFOLLOW_LINKS)) {
+                if (Files.exists(targetPath, LinkOption.NOFOLLOW_LINKS)) {
+                    log.error("Cannot restore deleted entry because target path already exists: {}", targetPath);
+                    return;
+                }
+
+                movePath(stagedDeletionPath, targetPath);
+            }
+        } catch (IOException exception) {
+            log.error("Failed to restore staged deletion for {}", targetPath, exception);
+        }
+    }
+
+    private void movePath(Path sourcePath, Path targetPath) throws IOException {
+        Files.move(sourcePath, targetPath);
+    }
+
+    private Path createSiblingTransactionPath(Path targetPath, String purpose) {
+        Path parentPath = targetPath.getParent();
+        String fileName = targetPath.getFileName() != null ? targetPath.getFileName().toString() : "entry";
+
+        for (int attempt = 0; attempt < 10; attempt++) {
+            Path candidate = parentPath.resolve("." + fileName + ".rdm-" + purpose + "-" + UUID.randomUUID());
+            if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+                return candidate;
+            }
+        }
+
+        throw new FileOperationException("Failed to allocate transaction path for: " + targetPath);
+    }
+
+    private void ensureTransactionSynchronizationAvailable() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            throw new TransactionSynchronizationUnavailableException(
+                    "Transaction synchronization is required for coordinated filesystem changes."
+            );
+        }
+    }
+
+    private void deleteQuietly(Path path, String description) {
+        if (path == null) {
+            return;
+        }
+
+        try {
+            if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                Files.delete(path);
+            }
+        } catch (IOException exception) {
+            log.warn("Failed to delete {} at {}", description, path, exception);
+        }
+    }
+
+    private void deleteRecursivelyQuietly(Path rootPath) {
+        if (rootPath == null || !Files.exists(rootPath, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+
+        try {
+            if (Files.isDirectory(rootPath, LinkOption.NOFOLLOW_LINKS)) {
+                deleteRecursively(rootPath);
                 return;
             }
 
-            Files.delete(targetRealPath);
+            Files.delete(rootPath);
         } catch (IOException exception) {
-            throw new FileOperationException("Failed to delete entry: " + relativePath, exception);
+            log.error("Failed to delete committed staged entry {}", rootPath, exception);
         }
     }
 

@@ -129,6 +129,32 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(MetadataSynchronizationException.class)
+    public ResponseEntity<ErrorResponse> handleMetadataSynchronization(
+            MetadataSynchronizationException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ErrorCode.METADATA_SYNC_FAILED,
+                resolveMessage(exception, "Failed to synchronize file metadata."),
+                request
+        );
+    }
+
+    @ExceptionHandler(TransactionSynchronizationUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionSynchronizationUnavailable(
+            TransactionSynchronizationUnavailableException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ErrorCode.TRANSACTION_SYNCHRONIZATION_UNAVAILABLE,
+                resolveMessage(exception, "Transaction synchronization is not available."),
+                request
+        );
+    }
+
     @ExceptionHandler(UnauthorizedApiKeyException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorizedApiKey(
             UnauthorizedApiKeyException exception,
