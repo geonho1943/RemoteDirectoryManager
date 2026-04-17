@@ -3,10 +3,12 @@ package com.example.fileserver.entry.service;
 import com.example.fileserver.common.error.EntryNotFoundException;
 import com.example.fileserver.common.error.FileOperationException;
 import com.example.fileserver.common.error.NotADirectoryException;
+import com.example.fileserver.common.time.FileTimeConverter;
 import com.example.fileserver.entry.dto.DirectoryListResponse;
 import com.example.fileserver.entry.dto.FileEntryDetailResponse;
 import com.example.fileserver.entry.dto.FileEntryDto;
 import com.example.fileserver.entry.dto.TagSummaryDto;
+import com.example.fileserver.entry.dto.TagSummaryMapper;
 import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.filesystem.path.PathNormalizer;
 import com.example.fileserver.filesystem.path.PathResolver;
@@ -19,9 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -117,10 +116,10 @@ public class FileQueryServiceImpl implements FileQueryService {
                 resolveExtension(entryType, name),
                 resolveMimeType(entryType, entryPath),
                 resolveSize(entryType, attributes),
-                toLocalDateTime(attributes.lastModifiedTime()),
+                FileTimeConverter.toLocalDateTime(attributes.lastModifiedTime()),
                 hidden,
                 fileMetadata != null ? fileMetadata.getFileId() : null,
-                fileMetadata != null ? toTagSummaryList(fileMetadata) : List.of()
+                resolveTags(fileMetadata)
         );
     }
 
@@ -153,19 +152,20 @@ public class FileQueryServiceImpl implements FileQueryService {
                 resolveExtension(entryType, name),
                 resolveMimeType(entryType, entryPath),
                 resolveSize(entryType, attributes),
-                toLocalDateTime(attributes.lastModifiedTime()),
-                toLocalDateTime(attributes.creationTime()),
+                FileTimeConverter.toLocalDateTime(attributes.lastModifiedTime()),
+                FileTimeConverter.toLocalDateTime(attributes.creationTime()),
                 isHidden(entryPath),
                 fileMetadata != null ? fileMetadata.getFileId() : null,
-                fileMetadata != null ? toTagSummaryList(fileMetadata) : List.of()
+                resolveTags(fileMetadata)
         );
     }
 
-    private List<TagSummaryDto> toTagSummaryList(FileEntryEntity fileMetadata) {
-        return fileMetadata.getTags().stream()
-                .map(tag -> new TagSummaryDto(tag.getTagId(), tag.getTagName()))
-                .sorted((left, right) -> left.tagName().compareToIgnoreCase(right.tagName()))
-                .toList();
+    private List<TagSummaryDto> resolveTags(FileEntryEntity fileMetadata) {
+        if (fileMetadata == null) {
+            return List.of();
+        }
+
+        return TagSummaryMapper.toSortedTagSummaries(fileMetadata.getTags());
     }
 
     private BasicFileAttributes readAttributes(Path entryPath, String relativePath) {
@@ -245,13 +245,5 @@ public class FileQueryServiceImpl implements FileQueryService {
         return Comparator
                 .comparingInt((FileEntryDto entry) -> ENTRY_TYPE_DIRECTORY.equals(entry.entryType()) ? 0 : 1)
                 .thenComparing(FileEntryDto::name);
-    }
-
-    private LocalDateTime toLocalDateTime(FileTime fileTime) {
-        if (fileTime == null) {
-            return null;
-        }
-
-        return LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
     }
 }

@@ -45,17 +45,8 @@ public class FileTransferServiceImpl implements FileTransferService {
         Path filePath = resolveRegularFile(normalizedPath);
 
         try {
-            Resource resource = new UrlResource(filePath.toUri());
-            String fileName = pathNormalizer.extractFileName(normalizedPath);
-
-            return ResponseEntity.ok()
-                    .contentType(resolveMediaType(filePath))
-                    .contentLength(Files.size(filePath))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                            .filename(fileName, StandardCharsets.UTF_8)
-                            .build()
-                            .toString())
-                    .body(resource);
+            return buildFullContentResponse(filePath, normalizedPath, ContentDisposition.attachment())
+                    .body(new UrlResource(filePath.toUri()));
         } catch (IOException exception) {
             throw new FileOperationException("Failed to prepare file download: " + normalizedPath, exception);
         }
@@ -70,30 +61,23 @@ public class FileTransferServiceImpl implements FileTransferService {
         try {
             long fileSize = Files.size(filePath);
             if (rangeHeader == null || rangeHeader.isBlank()) {
-                Resource resource = new UrlResource(filePath.toUri());
-                return ResponseEntity.ok()
-                        .contentType(mediaType)
-                        .contentLength(fileSize)
+                return buildFullContentResponse(filePath, normalizedPath, ContentDisposition.inline())
                         .header(HttpHeaders.ACCEPT_RANGES, ACCEPT_RANGES_VALUE)
-                        .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
-                                .filename(pathNormalizer.extractFileName(normalizedPath), StandardCharsets.UTF_8)
-                                .build()
-                                .toString())
-                        .body(resource);
+                        .body(new UrlResource(filePath.toUri()));
             }
 
             RangeSpec rangeSpec = parseRangeHeader(rangeHeader, fileSize);
             Resource resource = new InputStreamResource(openRangedStream(filePath, rangeSpec.start(), rangeSpec.contentLength()));
 
-            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-                    .contentType(mediaType)
-                    .contentLength(rangeSpec.contentLength())
+            return baseResponse(
+                    HttpStatus.PARTIAL_CONTENT,
+                    mediaType,
+                    rangeSpec.contentLength(),
+                    pathNormalizer.extractFileName(normalizedPath),
+                    ContentDisposition.inline()
+            )
                     .header(HttpHeaders.ACCEPT_RANGES, ACCEPT_RANGES_VALUE)
                     .header(HttpHeaders.CONTENT_RANGE, "bytes " + rangeSpec.start() + "-" + rangeSpec.end() + "/" + fileSize)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
-                            .filename(pathNormalizer.extractFileName(normalizedPath), StandardCharsets.UTF_8)
-                            .build()
-                            .toString())
                     .body(resource);
         } catch (IOException exception) {
             throw new FileOperationException("Failed to prepare file stream: " + normalizedPath, exception);
@@ -129,28 +113,28 @@ public class FileTransferServiceImpl implements FileTransferService {
     private RangeSpec parseRangeHeader(String rangeHeader, long fileSize) {
         String trimmedHeader = rangeHeader.trim();
         if (!trimmedHeader.startsWith("bytes=")) {
-            throw new InvalidRangeHeaderException("Invalid Range header.");
+            throw invalidRange();
         }
 
         String rangeValue = trimmedHeader.substring("bytes=".length()).trim();
         if (rangeValue.isEmpty() || rangeValue.contains(",")) {
-            throw new InvalidRangeHeaderException("Invalid Range header.");
+            throw invalidRange();
         }
 
         int dashIndex = rangeValue.indexOf('-');
         if (dashIndex < 0) {
-            throw new InvalidRangeHeaderException("Invalid Range header.");
+            throw invalidRange();
         }
 
         String startPart = rangeValue.substring(0, dashIndex).trim();
         String endPart = rangeValue.substring(dashIndex + 1).trim();
 
         if (startPart.isEmpty() && endPart.isEmpty()) {
-            throw new InvalidRangeHeaderException("Invalid Range header.");
+            throw invalidRange();
         }
 
         if (fileSize == 0) {
-            throw new InvalidRangeHeaderException("Invalid Range header.");
+            throw invalidRange();
         }
 
         try {
@@ -160,7 +144,7 @@ public class FileTransferServiceImpl implements FileTransferService {
             if (startPart.isEmpty()) {
                 long suffixLength = Long.parseLong(endPart);
                 if (suffixLength <= 0) {
-                    throw new InvalidRangeHeaderException("Invalid Range header.");
+                    throw invalidRange();
                 }
 
                 start = Math.max(fileSize - suffixLength, 0);
@@ -168,7 +152,7 @@ public class FileTransferServiceImpl implements FileTransferService {
             } else {
                 start = Long.parseLong(startPart);
                 if (start < 0 || start >= fileSize) {
-                    throw new InvalidRangeHeaderException("Invalid Range header.");
+                    throw invalidRange();
                 }
 
                 if (endPart.isEmpty()) {
@@ -176,15 +160,53 @@ public class FileTransferServiceImpl implements FileTransferService {
                 } else {
                     end = Long.parseLong(endPart);
                     if (end < start || end >= fileSize) {
-                        throw new InvalidRangeHeaderException("Invalid Range header.");
+                        throw invalidRange();
                     }
                 }
             }
 
             return new RangeSpec(start, end, end - start + 1);
         } catch (NumberFormatException exception) {
-            throw new InvalidRangeHeaderException("Invalid Range header.", exception);
+            throw invalidRange(exception);
         }
+    }
+
+    private ResponseEntity.BodyBuilder buildFullContentResponse(
+            Path filePath,
+            String normalizedPath,
+            ContentDisposition.Builder dispositionBuilder
+    ) throws IOException {
+        return baseResponse(
+                HttpStatus.OK,
+                resolveMediaType(filePath),
+                Files.size(filePath),
+                pathNormalizer.extractFileName(normalizedPath),
+                dispositionBuilder
+        );
+    }
+
+    private ResponseEntity.BodyBuilder baseResponse(
+            HttpStatus status,
+            MediaType mediaType,
+            long contentLength,
+            String fileName,
+            ContentDisposition.Builder dispositionBuilder
+    ) {
+        return ResponseEntity.status(status)
+                .contentType(mediaType)
+                .contentLength(contentLength)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        dispositionBuilder.filename(fileName, StandardCharsets.UTF_8).build().toString()
+                );
+    }
+
+    private InvalidRangeHeaderException invalidRange() {
+        return new InvalidRangeHeaderException("Invalid Range header.");
+    }
+
+    private InvalidRangeHeaderException invalidRange(Throwable cause) {
+        return new InvalidRangeHeaderException("Invalid Range header.", cause);
     }
 
     private InputStream openRangedStream(Path filePath, long start, long contentLength) throws IOException {

@@ -5,7 +5,7 @@ import com.example.fileserver.entry.dto.AssignTagsRequest;
 import com.example.fileserver.entry.dto.FileTagsResponse;
 import com.example.fileserver.entry.dto.RemoveTagsRequest;
 import com.example.fileserver.entry.dto.TagListResponse;
-import com.example.fileserver.entry.dto.TagSummaryDto;
+import com.example.fileserver.entry.dto.TagSummaryMapper;
 import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.entry.entity.TagEntity;
 import com.example.fileserver.entry.repository.FileEntryRepository;
@@ -43,10 +43,7 @@ public class FileTagServiceImpl implements FileTagService {
     @Transactional(readOnly = true)
     public TagListResponse listTags() {
         return new TagListResponse(
-                tagRepository.findAllByOrderByTagNameAsc()
-                        .stream()
-                        .map(this::toTagSummary)
-                        .toList()
+                TagSummaryMapper.toSortedTagSummaries(tagRepository.findAllByOrderByTagNameAsc())
         );
     }
 
@@ -68,14 +65,7 @@ public class FileTagServiceImpl implements FileTagService {
         }
 
         file.getTags().addAll(tagsToAssign.values());
-        FileEntryEntity savedFile = fileEntryRepository.save(file);
-
-        List<TagSummaryDto> tagDtos = savedFile.getTags().stream()
-                .map(this::toTagSummary)
-                .sorted((left, right) -> left.tagName().compareToIgnoreCase(right.tagName()))
-                .toList();
-
-        return new FileTagsResponse(savedFile.getFileId(), savedFile.getFilePath(), tagDtos);
+        return toFileTagsResponse(fileEntryRepository.save(file));
     }
 
     @Override
@@ -92,14 +82,7 @@ public class FileTagServiceImpl implements FileTagService {
         }
 
         file.getTags().removeIf(tag -> requestedIds.contains(tag.getTagId()));
-        FileEntryEntity savedFile = fileEntryRepository.save(file);
-
-        List<TagSummaryDto> tagDtos = savedFile.getTags().stream()
-                .map(this::toTagSummary)
-                .sorted((left, right) -> left.tagName().compareToIgnoreCase(right.tagName()))
-                .toList();
-
-        return new FileTagsResponse(savedFile.getFileId(), savedFile.getFilePath(), tagDtos);
+        return toFileTagsResponse(fileEntryRepository.save(file));
     }
 
     private void addExistingTags(Collection<Long> tagIds, Map<Long, TagEntity> tagsToAssign) {
@@ -177,7 +160,11 @@ public class FileTagServiceImpl implements FileTagService {
         return trimmed;
     }
 
-    private TagSummaryDto toTagSummary(TagEntity tag) {
-        return new TagSummaryDto(tag.getTagId(), tag.getTagName());
+    private FileTagsResponse toFileTagsResponse(FileEntryEntity file) {
+        return new FileTagsResponse(
+                file.getFileId(),
+                file.getFilePath(),
+                TagSummaryMapper.toSortedTagSummaries(file.getTags())
+        );
     }
 }

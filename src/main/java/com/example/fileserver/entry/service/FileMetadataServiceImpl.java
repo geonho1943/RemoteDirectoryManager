@@ -3,6 +3,7 @@ package com.example.fileserver.entry.service;
 import com.example.fileserver.common.error.EntryNotFoundException;
 import com.example.fileserver.common.error.FileOperationException;
 import com.example.fileserver.common.error.NotAFileException;
+import com.example.fileserver.common.time.FileTimeConverter;
 import com.example.fileserver.entry.entity.FileEntryEntity;
 import com.example.fileserver.entry.repository.FileEntryRepository;
 import com.example.fileserver.filesystem.path.PathNormalizer;
@@ -15,9 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,12 +87,7 @@ public class FileMetadataServiceImpl implements FileMetadataService {
             entity.getThumbnails().clear();
         }
 
-        entity.setFilePath(normalizedPath);
-        entity.setFileName(fileName);
-        entity.setFileExtension(pathNormalizer.extractExtension(fileName));
-        entity.setCreatedAt(toLocalDateTime(attributes.creationTime()));
-        entity.setModifiedAt(toLocalDateTime(attributes.lastModifiedTime()));
-        entity.setActive(true);
+        updateFileRecord(entity, normalizedPath, fileName, attributes);
 
         fileEntryRepository.save(entity);
 
@@ -117,11 +110,17 @@ public class FileMetadataServiceImpl implements FileMetadataService {
         }
     }
 
-    private LocalDateTime toLocalDateTime(FileTime fileTime) {
-        if (fileTime == null) {
-            return null;
-        }
-
-        return LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
+    private void updateFileRecord(
+            FileEntryEntity entity,
+            String normalizedPath,
+            String fileName,
+            BasicFileAttributes attributes
+    ) {
+        entity.setFilePath(normalizedPath);
+        entity.setFileName(fileName);
+        entity.setFileExtension(pathNormalizer.extractExtension(fileName));
+        entity.setCreatedAt(FileTimeConverter.toLocalDateTime(attributes.creationTime()));
+        entity.setModifiedAt(FileTimeConverter.toLocalDateTime(attributes.lastModifiedTime()));
+        entity.setActive(true);
     }
 }
