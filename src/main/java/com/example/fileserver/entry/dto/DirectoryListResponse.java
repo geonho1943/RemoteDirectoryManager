@@ -4,6 +4,6 @@ import java.util.List;
 
 public record DirectoryListResponse(
         String currentPath,
-        List<FileEntryDto> entries
+        List<FileEntryResponse> entries
 ) {
 }
