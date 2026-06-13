@@ -13,14 +13,14 @@ import java.util.Optional;
 
 public interface FileEntryRepository extends JpaRepository<FileEntryEntity, Long> {
 
+    // 경로와 일치하는 파일 메타데이터를 활성 여부와 무관하게 조회한다.
     Optional<FileEntryEntity> findByFilePath(String filePath);
 
-    @EntityGraph(attributePaths = "tags")
-    Optional<FileEntryEntity> findByFilePathAndActiveTrue(String filePath);
-
+    // 경로 목록에 해당하는 활성 파일 메타데이터와 태그를 함께 조회한다.
     @EntityGraph(attributePaths = "tags")
     List<FileEntryEntity> findByFilePathInAndActiveTrue(Collection<String> filePaths);
 
+    // 지정 경로와 하위 경로의 활성 파일 메타데이터를 비활성화한다.
     @Modifying
     @Query("""
             update FileEntryEntity e

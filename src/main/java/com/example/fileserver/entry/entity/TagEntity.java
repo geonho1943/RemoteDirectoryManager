@@ -30,6 +30,7 @@ public class TagEntity {
     public TagEntity() {
     }
 
+    // 새 태그 생성 시 태그명만 초기화한다.
     public TagEntity(String tagName) {
         this.tagName = tagName;
     }
