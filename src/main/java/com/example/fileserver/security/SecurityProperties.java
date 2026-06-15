@@ -10,6 +10,7 @@ public record SecurityProperties(String adminKeyHash) {
 
     private static final Pattern SHA_256_HEX = Pattern.compile("^[0-9a-f]{64}$");
 
+    // 관리자 API 키 해시 설정값을 소문자 SHA-256 hex 형식으로 검증한다.
     public SecurityProperties {
         if (adminKeyHash == null || adminKeyHash.isBlank()) {
             throw new IllegalArgumentException("app.security.admin-key-hash must not be blank.");

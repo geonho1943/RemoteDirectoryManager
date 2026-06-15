@@ -28,7 +28,7 @@
 
 - 동작: 보호된 API 호출 과정에서 `API-Key` 헤더를 보내면 서버가 SHA-256 해시 비교로 인증한다.
 - 요구 데이터: 원본 API Key 문자열이 필요하다.
-- 의존: `ApiKeyAuthenticationFilter`, `SecurityProperties`, `ApiKeyHasher` 에 의존한다.
+- 의존: `ApiKeyAuthenticationFilter`, `SecurityProperties` 에 의존한다.
 - 저장·반영: 요청마다 헤더 값을 해시 비교만 하며 DB 저장은 없다.
 - 결과: 인증 성공 시 다음 로직으로 진행되고, 실패 시 `401 Unauthorized` 와 오류 JSON을 반환한다.
 
@@ -71,9 +71,9 @@
 - 동작: 사용자가 파일 또는 디렉터리를 삭제할 때 `DELETE /api/v1/entries` 를 호출하면 동작한다.
 - 요구 데이터: 삭제 대상 `path` 가 필요하다.
 - 의존: `FileCommandService`, `PathResolver`, `FileMetadataService` 에 의존한다.
-- 저장·반영: 대상 파일 또는 디렉터리는 먼저 staging 경로로 이동한 뒤 트랜잭션 커밋 시 실제 삭제된다. 관련 파일 메타데이터는 `files.is_active = false` 로 비활성화된다.
+- 저장·반영: 대상 파일 또는 디렉터리는 먼저 staging 경로로 이동하고, 관련 파일 메타데이터는 `files.is_active = false` 로 비활성화된다. 메타데이터 변경이 커밋된 뒤 staging 대상이 물리 삭제된다.
 - 결과: 성공 시 본문 없는 `204 No Content` 를 반환한다.
-- 비고: 루트(`/`) 는 삭제할 수 없다.
+- 비고: 루트(`/`) 는 삭제할 수 없다. 커밋 이후 staging 대상의 물리 삭제가 실패하면 오류를 반환한다.
 
 ## 8. 파일 다운로드 기능
 
@@ -87,7 +87,7 @@
 
 - 동작: 사용자가 미리보기나 미디어 재생을 할 때 `GET /api/v1/files/stream` 을 호출하면 동작한다.
 - 요구 데이터: `path` 가 필요하며, 부분 전송이 필요하면 `Range` 헤더를 함께 보낸다.
-- 의존: `FileTransferService`, Range 파싱 로직, `PathResolver` 에 의존한다.
+- 의존: `FileTransferService`, Spring `HttpRange`/`ResourceRegion`, `PathResolver` 에 의존한다.
 - 저장·반영: 파일시스템의 실제 파일을 읽어 응답으로 전송하며 DB 저장은 없다.
 - 결과: 전체 파일 또는 부분 콘텐츠(`206 Partial Content`)를 반환한다.
 - 비고: 오디오, 비디오, PDF, 대용량 파일 미리보기에 적합하다.
@@ -104,7 +104,7 @@
 
 - 동작: 사용자가 파일에 기존 태그를 연결하거나 새 태그를 만들면서 연결할 때 `POST /api/v1/files/tags` 를 호출하면 동작한다.
 - 요구 데이터: `path`, `tagIds`, `tagNames` 가 필요하다. 기존 태그만, 새 태그만, 둘 다 함께 전달할 수 있다.
-- 의존: `FileTagService`, `FileMetadataService`, `FileEntryRepository`, `TagRepository` 에 의존한다.
+- 의존: `FileTagService`, `FileMetadataService`, `TagRepository` 에 의존한다.
 - 저장·반영: 파일 메타데이터가 먼저 동기화되고, 새 태그가 필요하면 `tags` 테이블에 저장된다. 이후 파일-태그 연결이 `file_tags` 테이블에 저장된다.
 - 결과: 대상 파일 ID, 파일 경로, 최종 태그 목록을 반환한다.
 
@@ -112,7 +112,7 @@
 
 - 동작: 사용자가 파일에 연결된 태그를 제거할 때 `DELETE /api/v1/files/tags` 를 호출하면 동작한다.
 - 요구 데이터: `path`, 제거할 `tagIds` 가 필요하다.
-- 의존: `FileTagService`, `FileMetadataService`, `FileEntryRepository` 에 의존한다.
+- 의존: `FileTagService`, `FileMetadataService` 에 의존한다.
 - 저장·반영: 대상 파일 메타데이터를 동기화한 뒤 `file_tags` 연결 관계를 제거한다. 태그 마스터 데이터(`tags`)는 삭제하지 않는다.
 - 결과: 대상 파일 ID, 파일 경로, 제거 후 남은 태그 목록을 반환한다.
 

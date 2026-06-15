@@ -59,7 +59,6 @@ API-Key: {raw-api-key}
 - `ENTRY_ALREADY_EXISTS`
 - `NOT_A_DIRECTORY`
 - `NOT_A_FILE`
-- `INVALID_MOVE_TARGET`
 - `INVALID_RANGE_HEADER`
 - `INVALID_TAG`
 - `METADATA_SYNC_FAILED`
@@ -275,7 +274,8 @@ API-Key: your-api-key
 - 기능: 파일 또는 디렉터리를 삭제한다.
 - 인증: 필요
 - Content-Type: `application/json`
-- 비고: 실제 삭제 전 staging 경로로 이동한 뒤 메타데이터 비활성화와 함께 커밋 시 삭제가 확정된다.
+- 비고: 삭제 대상은 먼저 staging 경로로 이동하고, 메타데이터 비활성화가 커밋된 뒤 물리 삭제된다.
+- 비고: 커밋 이후 staging 대상의 물리 삭제가 실패하면 오류 응답을 반환한다.
 
 #### Request Body
 
@@ -324,7 +324,7 @@ API-Key: your-api-key
 
 ```json
 {
-  "createdPath": "/docs/drafts"
+  "path": "/docs/drafts"
 }
 ```
 
@@ -357,7 +357,7 @@ file=<binary>
 
 ```json
 {
-  "storedPath": "/docs/spec.md"
+  "path": "/docs/spec.md"
 }
 ```
 
@@ -390,7 +390,7 @@ API-Key: your-api-key
 
 ### GET `/api/v1/files/stream`
 
-- 기능: 파일을 스트리밍 방식으로 반환한다.
+- 기능: 파일을 HTTP Range 기반 스트리밍 방식으로 반환한다.
 - 인증: 필요
 
 #### Query Parameter

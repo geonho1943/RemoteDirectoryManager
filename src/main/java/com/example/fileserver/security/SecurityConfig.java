@@ -11,20 +11,16 @@ import org.springframework.core.Ordered;
 @EnableConfigurationProperties(SecurityProperties.class)
 public class SecurityConfig {
 
-    @Bean
-    public ApiKeyHasher apiKeyHasher() {
-        return new ApiKeyHasher();
-    }
-
+    // API 키 인증 필터 빈을 생성한다.
     @Bean
     public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter(
             SecurityProperties securityProperties,
-            ApiKeyHasher apiKeyHasher,
             ObjectMapper objectMapper
     ) {
-        return new ApiKeyAuthenticationFilter(securityProperties, apiKeyHasher, objectMapper);
+        return new ApiKeyAuthenticationFilter(securityProperties, objectMapper);
     }
 
+    // API 경로에 인증 필터를 가장 높은 우선순위로 등록한다.
     @Bean
     public FilterRegistrationBean<ApiKeyAuthenticationFilter> apiKeyAuthenticationFilterRegistration(
             ApiKeyAuthenticationFilter apiKeyAuthenticationFilter
