@@ -1,4 +1,4 @@
-import { apiRequest, checkHealth } from "../shared/api.js";
+import { apiRequest, checkHealth, verifyApiKey } from "../shared/api.js";
 import {
     clearApiKey,
     clearLastPath,
@@ -25,68 +25,58 @@ import {
 } from "../shared/utils.js";
 
 const TEXT = {
-    ready: "Ready",
-    checking: "Checking session...",
-    loadingDir: "Loading directory...",
-    loadingDetail: "Loading detail...",
-    uploading: "Uploading...",
-    deleting: "Deleting...",
-    creating: "Creating directory...",
-    previewLoading: "Loading preview...",
-    streamLoading: "Loading stream...",
-    applyingTags: "Applying tags...",
-    removingTags: "Removing tags...",
-    noSelection: "No selection",
-    noTags: "No tags",
-    detailEmptyTitle: "Nothing selected",
-    detailEmptySubtitle: "Select a file or folder to inspect metadata and preview content.",
-    previewEmptyTitle: "Preview appears here",
-    previewEmptySubtitle: "Select a file to load a quick preview or choose a folder to inspect its details.",
-    previewDirectoryTitle: "Directory selected",
-    previewDirectorySubtitle: "Use OPEN, double click, or breadcrumbs to move into this folder.",
-    previewUnsupportedTitle: "Preview is not available",
-    previewUnsupportedSubtitle: "Download the file or use a dedicated viewer when needed.",
-    previewTooLargeText: "Text preview is limited to 500 KB.",
-    previewTooLargeImage: "Image preview is limited to 20 MB.",
-    previewTooLargeMedia: "Media preview is limited to 200 MB.",
-    previewTooLargePdf: "PDF preview is limited to 50 MB.",
-    fileTagHint: "Select a file to manage tags.",
-    directoryTagHint: "Tags are only supported for files.",
-    uploadEmpty: "No files selected yet.",
-    unauthorized: "Session expired. Please log in again.",
-    disconnected: "Disconnected.",
-    downloadStarted: "Download started.",
-    tagsApplied: "Tags applied.",
-    tagsRemoved: "Selected tags removed.",
-    chooseFolderName: "Enter a folder name.",
-    chooseFiles: "Choose one or more files first.",
-    chooseTags: "Select existing tags or type new tag names.",
-    chooseAttachedTags: "Select attached tags to remove.",
-    open: "Open",
-    preview: "Preview",
-    stream: "Stream",
-    download: "Download",
-    delete: "Delete",
-    yes: "Yes",
-    no: "No",
-    uploadDestination: (path) => `Upload target: ${path}`,
-    confirmDelete: (name) => `Delete "${name}"?`,
-    created: (name) => `Created "${name}".`,
-    deleted: (name) => `Deleted "${name}".`,
-    uploaded: (count) => `Uploaded ${count} file(s).`,
-    tagAttached: (count) => `${count} tag(s) attached`,
-    previewFailed: (message) => `Preview failed: ${message}`
+    previewLoading: "미리보기를 불러오는 중...",
+    streamLoading: "스트림을 불러오는 중...",
+    noSelection: "선택 없음",
+    noTags: "Tags 없음",
+    detailEmptyTitle: "선택된 항목 없음",
+    detailEmptySubtitle: "파일이나 폴더를 선택하면 Metadata와 미리보기를 확인할 수 있습니다.",
+    previewEmptyTitle: "미리보기 영역",
+    previewEmptySubtitle: "파일을 선택하면 미리보기를, 폴더를 선택하면 상세 정보를 표시합니다.",
+    previewDirectoryTitle: "폴더가 선택되었습니다",
+    previewDirectorySubtitle: "열기 버튼이나 더블클릭 또는 경로 탐색을 이용해 폴더로 이동하세요.",
+    previewUnsupportedTitle: "미리보기를 지원하지 않습니다",
+    previewUnsupportedSubtitle: "파일을 다운로드하거나 전용 뷰어를 이용해 주세요.",
+    previewTooLargeText: "텍스트 미리보기는 500 KB까지 지원합니다.",
+    previewTooLargeImage: "이미지 미리보기는 20 MB까지 지원합니다.",
+    previewTooLargeMedia: "미디어 미리보기는 200 MB까지 지원합니다.",
+    previewTooLargePdf: "PDF 미리보기는 50 MB까지 지원합니다.",
+    fileTagHint: "파일을 선택하면 Tags를 관리할 수 있습니다.",
+    directoryTagHint: "Tags는 파일에만 적용할 수 있습니다.",
+    uploadEmpty: "선택된 파일이 없습니다.",
+    unauthorized: "세션이 만료되었습니다. 다시 로그인해 주세요.",
+    disconnected: "연결을 해제했습니다.",
+    downloadStarted: "다운로드를 시작했습니다.",
+    tagsApplied: "Tags를 적용했습니다.",
+    tagsRemoved: "Tags를 제거했습니다.",
+    chooseFolderName: "폴더 이름을 입력해 주세요.",
+    chooseFiles: "먼저 파일을 하나 이상 선택해 주세요.",
+    chooseTags: "기존 Tags를 선택하거나 새 이름을 입력해 주세요.",
+    open: "열기",
+    preview: "미리보기",
+    stream: "스트림",
+    download: "다운로드",
+    delete: "삭제",
+    yes: "예",
+    no: "아니요",
+    uploadDestination: (path) => `업로드 위치: ${path}`,
+    confirmDelete: (name) => `"${name}" 항목을 삭제할까요?`,
+    created: (name) => `"${name}" 폴더를 만들었습니다.`,
+    deleted: (name) => `"${name}" 항목을 삭제했습니다.`,
+    uploaded: (count) => `파일 ${count}개를 업로드했습니다.`,
+    tagAttached: (count) => `Tags ${count}개가 적용됨`,
+    previewFailed: (message) => `미리보기 실패: ${message}`
 };
 
 const DETAIL_LABELS = [
-    ["Name", (detail) => detail.name || "-"],
-    ["Path", (detail) => detail.relativePath || "-"],
-    ["Type", (detail) => detail.entryType === "DIRECTORY" ? "Directory" : "File"],
+    ["이름", (detail) => detail.name || "-"],
+    ["경로", (detail) => detail.relativePath || "-"],
+    ["유형", (detail) => detail.entryType === "DIRECTORY" ? "폴더" : "파일"],
     ["MIME", (detail) => detail.mimeType || "-"],
-    ["Size", (detail) => detail.entryType === "DIRECTORY" ? "-" : formatSize(detail.sizeBytes)],
-    ["Modified", (detail) => formatDate(detail.modifiedAt)],
-    ["Created", (detail) => formatDate(detail.createdAtFs)],
-    ["Hidden", (detail) => detail.hidden ? TEXT.yes : TEXT.no],
+    ["크기", (detail) => detail.entryType === "DIRECTORY" ? "-" : formatSize(detail.sizeBytes)],
+    ["수정일", (detail) => formatDate(detail.modifiedAt)],
+    ["생성일", (detail) => formatDate(detail.createdAtFs)],
+    ["숨김", (detail) => detail.hidden ? TEXT.yes : TEXT.no],
     ["File ID", (detail) => detail.fileId != null ? String(detail.fileId) : "-"]
 ];
 
@@ -99,7 +89,6 @@ const state = {
     availableTags: [],
     selectedEntry: null,
     selectedDetail: null,
-    selectedTagIdsForRemoval: [],
     sortKey: "name",
     sortAsc: true,
     backStack: [],
@@ -121,9 +110,6 @@ const elements = {
     newFolderButton: document.getElementById("newFolderButton"),
     disconnectButton: document.getElementById("disconnectButton"),
     includeHiddenToggle: document.getElementById("includeHiddenToggle"),
-    currentPathLabel: document.getElementById("currentPathLabel"),
-    selectionSummary: document.getElementById("selectionSummary"),
-    statusLabel: document.getElementById("statusLabel"),
     breadcrumbs: document.getElementById("breadcrumbs"),
     entryCountLabel: document.getElementById("entryCountLabel"),
     fileListPanel: document.getElementById("fileListPanel"),
@@ -143,11 +129,7 @@ const elements = {
     quickTagInput: document.getElementById("quickTagInput"),
     availableTagOptions: document.getElementById("availableTagOptions"),
     quickTagAddButton: document.getElementById("quickTagAddButton"),
-    reloadDetailButton: document.getElementById("reloadDetailButton"),
     availableTagsSelect: document.getElementById("availableTagsSelect"),
-    selectedTagSelection: document.getElementById("selectedTagSelection"),
-    applySelectedTagsButton: document.getElementById("applySelectedTagsButton"),
-    removeSelectedTagsButton: document.getElementById("removeSelectedTagsButton"),
     tagStatusLabel: document.getElementById("tagStatusLabel"),
     modalOverlay: document.getElementById("modalOverlay"),
     mkdirModal: document.getElementById("mkdirModal"),
@@ -170,10 +152,6 @@ const elements = {
 
 const loading = createLoadingController(elements.loadingBar);
 const toast = createToastManager(elements.toastContainer);
-
-function setStatus(message) {
-    elements.statusLabel.textContent = message;
-}
 
 function showError(error) {
     if (error?.status === 401) {
@@ -208,7 +186,7 @@ function applyTheme(theme) {
     state.theme = theme === "light" ? "light" : "dark";
     document.body.dataset.theme = state.theme;
     setThemePreference(state.theme);
-    elements.themeToggleButton.textContent = state.theme === "light" ? "Dark Mode" : "Light Mode";
+    elements.themeToggleButton.textContent = state.theme === "light" ? "다크 모드" : "라이트 모드";
 }
 
 function renderSortHeaders() {
@@ -217,7 +195,7 @@ function renderSortHeaders() {
         const isSorted = state.sortKey === header.dataset.sortKey;
         header.classList.add("sortable");
         header.classList.toggle("sorted", isSorted);
-        header.textContent = isSorted ? `${label} ${state.sortAsc ? "ASC" : "DESC"}` : label;
+        header.textContent = isSorted ? `${label} ${state.sortAsc ? "오름차순" : "내림차순"}` : label;
     });
 }
 
@@ -274,20 +252,9 @@ function renderBreadcrumbs() {
     });
 }
 
-function renderSelectionSummary() {
-    if (!state.selectedEntry) {
-        elements.selectionSummary.textContent = TEXT.noSelection;
-        return;
-    }
-
-    elements.selectionSummary.textContent = `${state.selectedEntry.name} / ${describeEntryKind(state.selectedEntry)}`;
-}
-
 function clearSelection() {
     state.selectedEntry = null;
     state.selectedDetail = null;
-    state.selectedTagIdsForRemoval = [];
-    renderSelectionSummary();
     renderTable();
     renderEmptyDetail();
 }
@@ -295,7 +262,7 @@ function clearSelection() {
 function renderTable() {
     const entries = sortEntries(state.currentEntries);
     elements.fileTableBody.innerHTML = "";
-    elements.entryCountLabel.textContent = `${entries.length} item(s)`;
+    elements.entryCountLabel.textContent = `${entries.length}개`;
     elements.emptyState.classList.toggle("hidden", entries.length > 0);
 
     entries.forEach((entry) => {
@@ -328,16 +295,20 @@ function renderTable() {
             <td><div class="table-tags">${tagsHtml || `<span class="tag-chip tag-muted">${TEXT.noTags}</span>`}</div></td>
         `;
 
-        row.addEventListener("click", async () => {
-            state.selectedEntry = entry;
-            renderSelectionSummary();
-            renderTable();
-            await loadDetail(entry.relativePath);
+        let clickTimer = null;
+
+        row.addEventListener("click", () => {
+            window.clearTimeout(clickTimer);
+            clickTimer = window.setTimeout(async () => {
+                state.selectedEntry = entry;
+                renderTable();
+                await loadDetail(entry.relativePath);
+            }, 180);
         });
 
         row.addEventListener("dblclick", async () => {
+            window.clearTimeout(clickTimer);
             state.selectedEntry = entry;
-            renderSelectionSummary();
             renderTable();
 
             if (entry.entryType === "DIRECTORY") {
@@ -374,20 +345,6 @@ function renderDetailMeta(detail) {
     `).join("");
 }
 
-function renderSelectedTagRemovalState(attachedTags) {
-    const selectedIds = new Set(state.selectedTagIdsForRemoval);
-    const selectedTags = attachedTags.filter((tag) => selectedIds.has(tag.tagId));
-
-    if (selectedTags.length === 0) {
-        elements.selectedTagSelection.textContent = "No tags selected";
-        return;
-    }
-
-    elements.selectedTagSelection.innerHTML = selectedTags
-        .map((tag) => `<span class="tag-chip tag-selected">${escapeHtml(tag.tagName)}</span>`)
-        .join("");
-}
-
 function renderTagControls(detail) {
     const isFile = detail?.entryType === "FILE";
     const attachedTags = isFile ? detail.tags || [] : [];
@@ -399,54 +356,32 @@ function renderTagControls(detail) {
     elements.quickTagInput.value = "";
     elements.quickTagInput.disabled = !isFile;
     elements.quickTagAddButton.disabled = !isFile;
-    elements.reloadDetailButton.disabled = !state.selectedEntry;
-    elements.applySelectedTagsButton.disabled = !isFile;
-    state.selectedTagIdsForRemoval = state.selectedTagIdsForRemoval.filter((tagId) => attachedIds.has(tagId));
-    elements.removeSelectedTagsButton.disabled = !isFile || state.selectedTagIdsForRemoval.length === 0;
+    elements.availableTagsSelect.disabled = !isFile;
 
     if (!detail) {
         elements.selectedTagList.innerHTML = `<span class="tag-chip tag-muted">${TEXT.noSelection}</span>`;
         elements.availableTagsSelect.innerHTML = "";
         elements.availableTagOptions.innerHTML = "";
-        elements.selectedTagSelection.textContent = "No tags selected";
         elements.tagStatusLabel.textContent = TEXT.fileTagHint;
         return;
     }
 
     if (!isFile) {
-        elements.selectedTagList.innerHTML = `<span class="tag-chip tag-muted">Directory</span>`;
+        elements.selectedTagList.innerHTML = `<span class="tag-chip tag-muted">폴더</span>`;
         elements.availableTagsSelect.innerHTML = "";
         elements.availableTagOptions.innerHTML = "";
-        elements.selectedTagSelection.textContent = "No tags selected";
         elements.tagStatusLabel.textContent = TEXT.directoryTagHint;
         return;
     }
 
     elements.selectedTagList.innerHTML = attachedTags.length
         ? attachedTags.map((tag) => `
-            <span class="tag-chip tag-selectable${state.selectedTagIdsForRemoval.includes(tag.tagId) ? " tag-selected" : ""}" data-attached-tag-id="${tag.tagId}">
+            <span class="tag-chip">
                 ${escapeHtml(tag.tagName)}
-                <button class="tag-remove" type="button" data-tag-id="${tag.tagId}">x</button>
+                <button class="tag-remove" type="button" data-tag-id="${tag.tagId}" aria-label="${escapeHtml(tag.tagName)} Tag 제거">x</button>
             </span>
         `).join("")
         : `<span class="tag-chip tag-muted">${TEXT.noTags}</span>`;
-
-    elements.selectedTagList.querySelectorAll("[data-attached-tag-id]").forEach((chip) => {
-        chip.addEventListener("click", () => {
-            const tagId = Number(chip.dataset.attachedTagId);
-            if (!Number.isFinite(tagId)) {
-                return;
-            }
-
-            if (state.selectedTagIdsForRemoval.includes(tagId)) {
-                state.selectedTagIdsForRemoval = state.selectedTagIdsForRemoval.filter((value) => value !== tagId);
-            } else {
-                state.selectedTagIdsForRemoval = [...state.selectedTagIdsForRemoval, tagId];
-            }
-
-            renderTagControls(state.selectedDetail);
-        });
-    });
 
     elements.selectedTagList.querySelectorAll("[data-tag-id]").forEach((button) => {
         button.addEventListener("click", async (event) => {
@@ -463,7 +398,6 @@ function renderTagControls(detail) {
         .map((tag) => `<option value="${escapeHtml(tag.tagName)}"></option>`)
         .join("");
 
-    renderSelectedTagRemovalState(attachedTags);
     elements.tagStatusLabel.textContent = TEXT.tagAttached(attachedTags.length);
 }
 
@@ -566,7 +500,6 @@ async function renderPreview(detail, useStreamEndpoint = false) {
 
     const requestId = ++state.previewRequestId;
     const statusText = useStreamEndpoint ? TEXT.streamLoading : TEXT.previewLoading;
-    setStatus(statusText);
     elements.previewContent.innerHTML = `
         <div class="preview-message">
             <div class="spinner"></div>
@@ -585,7 +518,6 @@ async function renderPreview(detail, useStreamEndpoint = false) {
             }
 
             elements.previewContent.innerHTML = `<pre class="preview-text">${escapeHtml(text)}</pre>`;
-            setStatus(TEXT.ready);
             return;
         }
 
@@ -610,7 +542,6 @@ async function renderPreview(detail, useStreamEndpoint = false) {
             elements.previewContent.querySelector("iframe").src = state.previewUrl;
         }
 
-        setStatus(TEXT.ready);
     } catch (error) {
         if (requestId !== state.previewRequestId) {
             return;
@@ -634,7 +565,6 @@ async function loadDirectory(path, options = {}) {
     const normalizedPath = normalizePath(path);
     const previousSelectionPath = options.preserveSelection ? state.selectedEntry?.relativePath : null;
 
-    setStatus(TEXT.loadingDir);
     elements.listLoading.classList.remove("hidden");
     elements.emptyState.classList.add("hidden");
     loading.start();
@@ -649,9 +579,7 @@ async function loadDirectory(path, options = {}) {
             : null;
         state.selectedDetail = null;
 
-        elements.currentPathLabel.textContent = state.currentPath;
         renderBreadcrumbs();
-        renderSelectionSummary();
         renderTable();
 
         if (state.selectedEntry) {
@@ -668,7 +596,6 @@ async function loadDirectory(path, options = {}) {
         elements.listLoading.classList.add("hidden");
         loading.end();
         updateNavigationButtons();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -685,7 +612,6 @@ async function navigateTo(path) {
 }
 
 async function loadDetail(path) {
-    setStatus(TEXT.loadingDetail);
     loading.start();
 
     try {
@@ -701,7 +627,6 @@ async function loadDetail(path) {
         throw error;
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -766,7 +691,6 @@ async function createDirectory() {
     }
 
     closeModal();
-    setStatus(TEXT.creating);
     loading.start();
 
     try {
@@ -784,7 +708,6 @@ async function createDirectory() {
         showError(error);
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -795,7 +718,6 @@ async function uploadFiles() {
     }
 
     closeModal();
-    setStatus(TEXT.uploading);
     loading.start();
 
     let uploadedCount = 0;
@@ -822,7 +744,6 @@ async function uploadFiles() {
         state.uploadFiles = [];
         renderUploadFiles();
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -833,7 +754,6 @@ async function deleteEntry() {
 
     const target = state.pendingDeleteEntry;
     closeModal();
-    setStatus(TEXT.deleting);
     loading.start();
 
     try {
@@ -850,7 +770,6 @@ async function deleteEntry() {
         showError(error);
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -878,7 +797,6 @@ async function downloadSelected(detail) {
         showError(error);
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -892,7 +810,6 @@ async function applyTags(tagIds, tagNames) {
         return;
     }
 
-    setStatus(TEXT.applyingTags);
     loading.start();
 
     try {
@@ -911,7 +828,6 @@ async function applyTags(tagIds, tagNames) {
             listEntry.tags = response.tags || [];
         }
 
-        state.selectedTagIdsForRemoval = [];
         await loadTags();
         renderTable();
         renderTagControls(state.selectedDetail);
@@ -920,7 +836,6 @@ async function applyTags(tagIds, tagNames) {
         showError(error);
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -930,11 +845,9 @@ async function removeTags(tagIds) {
     }
 
     if (tagIds.length === 0) {
-        toast.show(TEXT.chooseAttachedTags, "error");
         return;
     }
 
-    setStatus(TEXT.removingTags);
     loading.start();
 
     try {
@@ -952,9 +865,6 @@ async function removeTags(tagIds) {
             listEntry.tags = response.tags || [];
         }
 
-        state.selectedTagIdsForRemoval = state.selectedTagIdsForRemoval.filter((tagId) =>
-            (response.tags || []).some((tag) => tag.tagId === tagId)
-        );
         renderTable();
         renderTagControls(state.selectedDetail);
         toast.show(TEXT.tagsRemoved, "success");
@@ -962,7 +872,6 @@ async function removeTags(tagIds) {
         showError(error);
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -991,22 +900,14 @@ async function quickAddTags() {
     elements.quickTagInput.value = "";
 }
 
-function getSelectedTagIds(selectElement) {
-    return Array.from(selectElement.selectedOptions)
-        .map((option) => Number(option.value))
-        .filter((value) => Number.isFinite(value) && value > 0);
-}
-
 async function verifySession() {
-    setStatus(TEXT.checking);
     loading.start();
 
     try {
         await checkHealth();
-        await apiRequest(`/entries?path=${encodeURIComponent("/")}&includeHidden=${encodeURIComponent(String(state.includeHidden))}`);
+        await verifyApiKey(state.apiKey);
     } finally {
         loading.end();
-        setStatus(TEXT.ready);
     }
 }
 
@@ -1057,12 +958,6 @@ function bindEvents() {
         clearSelection();
     });
 
-    elements.reloadDetailButton.addEventListener("click", async () => {
-        if (state.selectedEntry) {
-            await loadDetail(state.selectedEntry.relativePath);
-        }
-    });
-
     elements.quickTagAddButton.addEventListener("click", async () => {
         await quickAddTags();
     });
@@ -1074,12 +969,11 @@ function bindEvents() {
         }
     });
 
-    elements.applySelectedTagsButton.addEventListener("click", async () => {
-        await applyTags(getSelectedTagIds(elements.availableTagsSelect), []);
-    });
-
-    elements.removeSelectedTagsButton.addEventListener("click", async () => {
-        await removeTags([...state.selectedTagIdsForRemoval]);
+    elements.availableTagsSelect.addEventListener("dblclick", async () => {
+        const tagId = Number(elements.availableTagsSelect.value);
+        if (Number.isFinite(tagId) && tagId > 0) {
+            await applyTags([tagId], []);
+        }
     });
 
     elements.mkdirCancelButton.addEventListener("click", closeModal);
@@ -1201,7 +1095,6 @@ async function init() {
 
     applyTheme(state.theme);
     renderSortHeaders();
-    renderSelectionSummary();
     renderEmptyDetail();
     bindEvents();
 

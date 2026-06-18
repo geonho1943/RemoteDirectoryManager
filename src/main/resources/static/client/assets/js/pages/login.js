@@ -1,4 +1,4 @@
-import { apiRequest, checkHealth } from "../shared/api.js";
+import { checkHealth, verifyApiKey } from "../shared/api.js";
 import { clearApiKey, getApiKey, setApiKey } from "../shared/storage.js";
 import { createLoadingController, createToastManager } from "../shared/ui.js";
 
@@ -28,7 +28,7 @@ function setError(message) {
 async function connect() {
     const apiKey = elements.apiKeyInput.value.trim();
     if (!apiKey) {
-        setError("Enter an API key first.");
+        setError("API Key를 입력해 주세요.");
         elements.apiKeyInput.focus();
         return;
     }
@@ -39,16 +39,14 @@ async function connect() {
 
     try {
         await checkHealth();
-        await apiRequest(`/entries?path=${encodeURIComponent("/")}&includeHidden=true`, {
-            apiKey
-        });
+        await verifyApiKey(apiKey);
 
         setApiKey(apiKey);
-        toast.show("Connected.", "success");
+        toast.show("연결되었습니다.", "success");
         window.location.href = "./explorer.html";
     } catch (error) {
         clearApiKey();
-        const message = error.status === 401 ? "Check the API key." : error.message;
+        const message = error.status === 401 ? "API Key를 확인해 주세요." : error.message;
         setError(message);
     } finally {
         elements.connectButton.disabled = false;

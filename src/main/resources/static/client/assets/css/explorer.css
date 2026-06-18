@@ -14,23 +14,8 @@
     min-width: 0;
 }
 
-.brand-line {
-    display: flex;
-    align-items: flex-end;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.brand {
-    margin: 10px 0 0;
-    color: var(--text-bright);
-    font-size: clamp(2rem, 4vw, 2.8rem);
-    line-height: 1;
-    letter-spacing: 0.22em;
-}
-
 .brand-sub {
-    margin: 0;
+    margin: 8px 0 0;
     color: var(--text-muted);
     max-width: 520px;
 }
@@ -58,40 +43,12 @@
     text-transform: uppercase;
 }
 
-.status-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-    margin: 16px 0;
-}
-
-.status-card {
-    padding: 18px 20px;
-}
-
-.status-label {
-    display: block;
-    color: var(--text-muted);
-    font-size: 0.72rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-}
-
-.status-value {
-    display: block;
-    margin-top: 8px;
-    color: var(--text-bright);
-    font-family: var(--font-mono);
-    font-size: 0.96rem;
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-}
-
 .workspace {
     display: grid;
     grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.7fr);
     gap: 18px;
-    min-height: calc(100vh - 220px);
+    min-height: calc(100vh - 126px);
+    margin-top: 18px;
 }
 
 .explorer-panel,
@@ -282,20 +239,6 @@
     background: var(--surface-chip-muted);
 }
 
-.tag-chip.tag-selectable {
-    cursor: pointer;
-}
-
-.tag-chip.tag-selectable:hover {
-    border-color: var(--accent);
-}
-
-.tag-chip.tag-selected {
-    background: var(--danger-soft);
-    border-color: var(--danger);
-    color: var(--danger);
-}
-
 .tag-remove {
     border: 0;
     background: none;
@@ -417,8 +360,7 @@
     overflow-wrap: anywhere;
 }
 
-.detail-actions,
-.split-actions {
+.detail-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -473,32 +415,22 @@
     word-break: break-word;
 }
 
-.tag-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-}
-
 .tag-select {
     min-height: 176px;
     padding-right: 8px;
 }
 
-.selected-tags-panel {
-    min-height: 176px;
+.quick-tag-button {
+    margin-top: 10px;
 }
 
-.tag-selection-panel {
-    display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 8px;
-    min-height: 176px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius);
-    background: var(--bg-panel-strong);
+.available-tags-field {
+    margin-top: 16px;
+}
+
+.field-hint {
     color: var(--text-muted);
-    padding: 12px 14px;
+    font-size: 0.78rem;
 }
 
 .modal-overlay {
@@ -603,13 +535,6 @@
         justify-content: flex-start;
     }
 
-    .status-strip {
-        grid-template-columns: 1fr;
-    }
-
-    .tag-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 @media (max-width: 720px) {
@@ -625,8 +550,7 @@
         gap: 6px;
     }
 
-    .modal-actions,
-    .split-actions {
+    .modal-actions {
         flex-direction: column;
     }
 }

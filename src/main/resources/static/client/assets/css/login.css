@@ -47,17 +47,13 @@
     align-items: flex-start;
 }
 
-.login-logo {
-    margin: 8px 0 6px;
-    color: var(--text-bright);
-    font-size: clamp(2.2rem, 8vw, 3rem);
-    letter-spacing: 0.2em;
-    line-height: 1;
-}
-
 .login-subtitle,
 .login-copy {
     color: var(--text-muted);
+}
+
+.login-subtitle {
+    margin: 10px 0 0;
 }
 
 .login-copy {

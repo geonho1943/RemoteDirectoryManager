@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vault Login</title>
+    <title>Remote Directory Manager 로그인</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./assets/css/base.css">
     <link rel="stylesheet" href="./assets/css/login.css">
 </head>
@@ -19,13 +19,12 @@
         <div class="login-card-head">
             <div>
                 <div class="eyebrow">Remote Directory Manager</div>
-                <h1 class="login-logo">VAULT<span class="accent-dot">.</span></h1>
-                <p class="login-subtitle">Secure browser for directory listing, upload, preview, and tag control.</p>
+                <p class="login-subtitle">디렉터리 탐색, 업로드, 미리보기, Tags 관리를 안전하게 이용하세요.</p>
             </div>
         </div>
 
         <div class="login-copy">
-            <p>Only the API key is required here. Server address input is intentionally removed because this client runs on the same origin as the service.</p>
+            <p>이 서비스는 서버와 같은 주소에서 실행되므로 API Key만 입력하면 됩니다.</p>
         </div>
 
         <form id="loginForm" class="login-form" novalidate>
@@ -36,11 +35,11 @@
                     class="text-input"
                     type="password"
                     autocomplete="current-password"
-                    placeholder="Enter your API key"
+                    placeholder="API Key를 입력하세요"
                 >
             </label>
 
-            <button id="connectButton" class="btn btn-primary btn-block" type="submit">Connect</button>
+            <button id="connectButton" class="btn btn-primary btn-block" type="submit">연결</button>
             <p id="loginError" class="inline-error hidden" role="alert"></p>
         </form>
     </section>

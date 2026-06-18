@@ -133,11 +133,11 @@ export function getPreviewType(entry) {
 
 export function describeEntryKind(entry) {
     if (!entry) {
-        return "No selection";
+        return "선택 없음";
     }
 
     if (entry.entryType === "DIRECTORY") {
-        return "Directory";
+        return "폴더";
     }
 
     if (entry.mimeType) {
@@ -148,5 +148,5 @@ export function describeEntryKind(entry) {
         return entry.extension.toUpperCase();
     }
 
-    return "File";
+    return "파일";
 }
