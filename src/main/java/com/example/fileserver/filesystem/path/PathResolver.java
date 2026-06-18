@@ -2,7 +2,9 @@ package com.example.fileserver.filesystem.path;
 
 import com.example.fileserver.common.error.ApiException;
 
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,15 +32,27 @@ public class PathResolver {
         this.rootPath = rootPath.toAbsolutePath().normalize();
         this.pathNormalizer = Objects.requireNonNull(pathNormalizer, "PathNormalizer must not be null.");
 
-        if (Files.exists(this.rootPath, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(this.rootPath)) {
-            throw new ApiException(INVALID_PATH, "Configured root path must not be a symbolic link: " + this.rootPath);
+        if (Files.exists(this.rootPath, LinkOption.NOFOLLOW_LINKS)
+                && !Files.isDirectory(this.rootPath, LinkOption.NOFOLLOW_LINKS)) {
+            throw new ApiException(INVALID_PATH, "Configured root path must be a directory: " + this.rootPath);
+        }
+
+        try {
+            Files.createDirectories(this.rootPath);
+        } catch (IOException exception) {
+            throw new ApiException(FILE_OPERATION_FAILED, "Failed to create storage root: " + this.rootPath, exception);
         }
     }
 
     // 정규화된 상대 경로를 루트 하위 실제 경로로 해석한다.
     public Path resolveUnderRoot(String relativePath) {
         String normalizedRelativePath = pathNormalizer.normalizeRelativePath(relativePath);
-        Path resolvedPath = resolveAgainstRoot(normalizedRelativePath).normalize();
+        final Path resolvedPath;
+        try {
+            resolvedPath = resolveAgainstRoot(normalizedRelativePath).normalize();
+        } catch (InvalidPathException exception) {
+            throw new ApiException(INVALID_PATH, "Path contains invalid characters: " + relativePath, exception);
+        }
 
         if (!resolvedPath.startsWith(rootPath)) {
             throw new ApiException(INVALID_PATH, "Resolved path escapes the configured root: " + relativePath);

@@ -53,6 +53,7 @@ API-Key: {raw-api-key}
 
 ### 3.3 주요 오류 코드
 
+- `INVALID_REQUEST`
 - `INVALID_PATH`
 - `INVALID_ENTRY_NAME`
 - `ENTRY_NOT_FOUND`
@@ -61,6 +62,9 @@ API-Key: {raw-api-key}
 - `NOT_A_FILE`
 - `INVALID_RANGE_HEADER`
 - `INVALID_TAG`
+- `RESOURCE_NOT_FOUND`
+- `METHOD_NOT_ALLOWED`
+- `PAYLOAD_TOO_LARGE`
 - `METADATA_SYNC_FAILED`
 - `TRANSACTION_SYNCHRONIZATION_UNAVAILABLE`
 - `FILE_OPERATION_FAILED`
@@ -75,7 +79,13 @@ API-Key: {raw-api-key}
 |---|---|---|---|
 | `GET` | `/api/v1/health` | 불필요 | 서버 상태 확인 |
 
-### 4.2 Entry
+### 4.2 Authentication
+
+| Method | Endpoint | 인증 | 기능 |
+|---|---|---|---|
+| `GET` | `/api/v1/auth/verify` | 필요 | API 키 유효성 확인 |
+
+### 4.3 Entry
 
 | Method | Endpoint | 인증 | 기능 |
 |---|---|---|---|
@@ -83,13 +93,13 @@ API-Key: {raw-api-key}
 | `GET` | `/api/v1/entries/detail` | 필요 | 파일/디렉터리 상세 조회 |
 | `DELETE` | `/api/v1/entries` | 필요 | 파일 또는 디렉터리 삭제 |
 
-### 4.3 Directory
+### 4.4 Directory
 
 | Method | Endpoint | 인증 | 기능 |
 |---|---|---|---|
 | `POST` | `/api/v1/directories` | 필요 | 새 디렉터리 생성 |
 
-### 4.4 File
+### 4.5 File
 
 | Method | Endpoint | 인증 | 기능 |
 |---|---|---|---|
@@ -97,7 +107,7 @@ API-Key: {raw-api-key}
 | `GET` | `/api/v1/files/download` | 필요 | 파일 다운로드 |
 | `GET` | `/api/v1/files/stream` | 필요 | 파일 스트리밍 |
 
-### 4.5 Tag
+### 4.6 Tag
 
 | Method | Endpoint | 인증 | 기능 |
 |---|---|---|---|
@@ -124,7 +134,24 @@ API-Key: {raw-api-key}
 }
 ```
 
-## 5.2 Entry
+## 5.2 Authentication
+
+### GET `/api/v1/auth/verify`
+
+- 기능: 저장소나 DB 조회 없이 전달된 API 키가 유효한지 확인한다.
+- 인증: 필요
+- Query Parameter: 없음
+- Request Body: 없음
+
+#### 응답 예시
+
+```json
+{
+  "authenticated": true
+}
+```
+
+## 5.3 Entry
 
 ### GET `/api/v1/entries`
 
@@ -296,7 +323,7 @@ API-Key: your-api-key
 - 상태 코드: `204 No Content`
 - 응답 본문: 없음
 
-## 5.3 Directory
+## 5.4 Directory
 
 ### POST `/api/v1/directories`
 
@@ -328,7 +355,7 @@ API-Key: your-api-key
 }
 ```
 
-## 5.4 File
+## 5.5 File
 
 ### POST `/api/v1/files/upload`
 
@@ -425,7 +452,7 @@ Range: bytes=0-1048575
   - `Accept-Ranges: bytes`
   - `Content-Range` (부분 응답 시)
 
-## 5.5 Tag
+## 5.6 Tag
 
 ### GET `/api/v1/tags`
 

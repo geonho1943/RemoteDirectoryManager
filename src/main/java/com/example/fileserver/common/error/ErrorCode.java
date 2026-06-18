@@ -3,6 +3,7 @@ package com.example.fileserver.common.error;
 import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request."),
     INVALID_PATH(HttpStatus.BAD_REQUEST, "Invalid path."),
     INVALID_ENTRY_NAME(HttpStatus.BAD_REQUEST, "Invalid entry name."),
     ENTRY_NOT_FOUND(HttpStatus.NOT_FOUND, "Entry not found."),
@@ -11,6 +12,9 @@ public enum ErrorCode {
     NOT_A_FILE(HttpStatus.BAD_REQUEST, "Not a file."),
     INVALID_RANGE_HEADER(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE, "Invalid Range header."),
     INVALID_TAG(HttpStatus.BAD_REQUEST, "Invalid tag."),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found."),
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "Method not allowed."),
+    PAYLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "Payload too large."),
     METADATA_SYNC_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to synchronize file metadata."),
     TRANSACTION_SYNCHRONIZATION_UNAVAILABLE(HttpStatus.INTERNAL_SERVER_ERROR, "Transaction synchronization is not available."),
     FILE_OPERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "File operation failed."),

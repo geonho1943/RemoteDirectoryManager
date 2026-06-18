@@ -12,6 +12,8 @@ import com.example.fileserver.entry.service.FileQueryService;
 import com.example.fileserver.entry.service.FileTagService;
 import com.example.fileserver.transfer.service.FileTransferService;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.ResourceRegion;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+import static com.example.fileserver.common.error.ErrorCode.INVALID_REQUEST;
 import static com.example.fileserver.common.error.ErrorCode.INVALID_TAG;
 
 @RestController
@@ -69,6 +72,10 @@ public class EntryController {
     // 지정 경로의 파일 또는 디렉터리를 삭제한다.
     @DeleteMapping("/entries")
     public ResponseEntity<Void> deleteEntry(@RequestBody DeleteEntryRequest request) {
+        if (request == null) {
+            throw new ApiException(INVALID_REQUEST, "Delete request is required.");
+        }
+
         fileCommandService.deleteEntry(request.path());
         return ResponseEntity.noContent().build();
     }
@@ -76,6 +83,10 @@ public class EntryController {
     // 지정 부모 경로 아래에 새 디렉터리를 생성한다.
     @PostMapping("/directories")
     public ResponseEntity<PathResponse> createDirectory(@RequestBody CreateDirectoryRequest request) {
+        if (request == null) {
+            throw new ApiException(INVALID_REQUEST, "Directory creation request is required.");
+        }
+
         PathResponse response = fileCommandService.createDirectory(request.parentPath(), request.name());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -97,13 +108,19 @@ public class EntryController {
         return fileTransferService.downloadFile(path);
     }
 
-    // 지정 파일을 전체 또는 Range 기반 부분 스트림으로 반환한다.
-    @GetMapping("/files/stream")
-    public ResponseEntity<?> streamFile(
+    // Range 헤더가 없는 요청은 파일 전체를 inline 응답으로 반환한다.
+    @GetMapping(value = "/files/stream", headers = "!Range")
+    public ResponseEntity<Resource> streamFile(@RequestParam("path") String path) {
+        return fileTransferService.streamFile(path);
+    }
+
+    // Range 헤더가 있는 요청은 단일 부분 영역을 206 응답으로 반환한다.
+    @GetMapping(value = "/files/stream", headers = HttpHeaders.RANGE)
+    public ResponseEntity<ResourceRegion> streamFileRegion(
             @RequestParam("path") String path,
-            @RequestHeader(value = "Range", required = false) String rangeHeader
+            @RequestHeader(HttpHeaders.RANGE) String rangeHeader
     ) {
-        return fileTransferService.streamFile(path, rangeHeader);
+        return fileTransferService.streamFileRegion(path, rangeHeader);
     }
 
     // 전체 태그 목록을 반환한다.

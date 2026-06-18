@@ -26,7 +26,7 @@ public interface FileEntryRepository extends JpaRepository<FileEntryEntity, Long
             update FileEntryEntity e
                set e.active = false
              where e.active = true
-               and (e.filePath = :targetPath or e.filePath like concat(:targetPath, '/%'))
+               and (e.filePath = :targetPath or locate(concat(:targetPath, '/'), e.filePath) = 1)
             """)
     int deactivateByFilePathOrDescendant(@Param("targetPath") String targetPath);
 }

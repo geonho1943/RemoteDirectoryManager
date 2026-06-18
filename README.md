@@ -44,10 +44,13 @@ RemoteDirectoryManager는 파일시스템 저장소를 기준으로 파일과 �
 - `app.security.admin-key-hash`
 
 `app.security.admin-key-hash`에는 원본 API Key를 SHA-256으로 변환한 소문자 16진수 해시값을 넣어야 합니다.
+저장소 루트가 없으면 시작 시 자동으로 생성되며, 상대 경로는 서버 프로세스의 작업 디렉터리를 기준으로 해석됩니다.
+`RDM_STORAGE_ROOT` 환경 변수로 저장소 위치를 덮어쓸 수 있습니다.
 
 ## API 요약
 
 - `GET /api/v1/health`
+- `GET /api/v1/auth/verify`
 - `GET /api/v1/entries`
 - `GET /api/v1/entries/detail`
 - `DELETE /api/v1/entries`

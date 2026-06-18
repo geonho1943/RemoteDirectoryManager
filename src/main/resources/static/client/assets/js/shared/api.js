@@ -35,14 +35,14 @@ export async function apiRequest(path, options = {}) {
 
     if (!response.ok) {
         let message = `HTTP ${response.status}`;
+        const responseText = await response.text().catch(() => "");
 
-        try {
-            const payload = await response.json();
-            message = payload.message || message;
-        } catch (jsonError) {
-            const text = await response.text().catch(() => "");
-            if (text) {
-                message = text;
+        if (responseText) {
+            try {
+                const payload = JSON.parse(responseText);
+                message = payload.message || message;
+            } catch (jsonError) {
+                message = responseText;
             }
         }
 
@@ -75,4 +75,8 @@ export async function checkHealth() {
     }
 
     return response.json();
+}
+
+export async function verifyApiKey(apiKey = getApiKey()) {
+    return apiRequest("/auth/verify", { apiKey });
 }

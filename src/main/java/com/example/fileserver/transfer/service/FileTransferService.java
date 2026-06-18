@@ -53,23 +53,31 @@ public class FileTransferService {
         }
     }
 
-    // Range 헤더가 있으면 부분 응답을, 없으면 전체 inline 스트림 응답을 반환한다.
-    public ResponseEntity<?> streamFile(String path, String rangeHeader) {
+    // 파일 전체를 inline 스트림 응답으로 반환한다.
+    public ResponseEntity<Resource> streamFile(String path) {
         String normalizedPath = pathNormalizer.normalizeRelativePath(path);
         Path filePath = resolveRegularFile(normalizedPath);
-        MediaType mediaType = resolveMediaType(filePath);
 
         try {
             Resource resource = new UrlResource(filePath.toUri());
-            if (rangeHeader == null || rangeHeader.isBlank()) {
-                return buildFullContentResponse(filePath, normalizedPath, ContentDisposition.inline())
-                        .header(HttpHeaders.ACCEPT_RANGES, ACCEPT_RANGES_VALUE)
-                        .body(resource);
-            }
+            return buildFullContentResponse(filePath, normalizedPath, ContentDisposition.inline())
+                    .header(HttpHeaders.ACCEPT_RANGES, ACCEPT_RANGES_VALUE)
+                    .body(resource);
+        } catch (IOException exception) {
+            throw new ApiException(FILE_OPERATION_FAILED, "Failed to prepare file stream: " + normalizedPath, exception);
+        }
+    }
 
+    // Range 헤더를 단일 파일 영역으로 변환해 부분 스트림 응답을 반환한다.
+    public ResponseEntity<ResourceRegion> streamFileRegion(String path, String rangeHeader) {
+        String normalizedPath = pathNormalizer.normalizeRelativePath(path);
+        Path filePath = resolveRegularFile(normalizedPath);
+
+        try {
+            Resource resource = new UrlResource(filePath.toUri());
             ResourceRegion region = toSingleResourceRegion(rangeHeader, resource);
             return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-                    .contentType(mediaType)
+                    .contentType(resolveMediaType(filePath))
                     .header(
                             HttpHeaders.CONTENT_DISPOSITION,
                             ContentDisposition.inline()

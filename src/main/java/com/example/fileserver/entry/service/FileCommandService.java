@@ -441,13 +441,9 @@ public class FileCommandService {
                 return FileVisitResult.CONTINUE;
             }
 
-            // 일반 파일을 삭제하고 심볼릭 링크는 거부한다.
+            // 심볼릭 링크를 따라가지 않고 링크 자체를 일반 파일처럼 삭제한다.
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                if (attrs.isSymbolicLink()) {
-                    throw new ApiException(FILE_OPERATION_FAILED, "Symbolic links are not allowed: " + file);
-                }
-
                 Files.delete(file);
                 return FileVisitResult.CONTINUE;
             }
